@@ -1,4 +1,4 @@
-# Lyapunov‑Exponent — Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics
+# Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics
 
 > **Paper:** **Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics**  
 > **DOI:** _coming soon_
