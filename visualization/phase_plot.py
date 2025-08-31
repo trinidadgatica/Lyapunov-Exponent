@@ -1,21 +1,18 @@
-import sys
-import os
-
-current_dir = os.getcwd()
-sys.path.append(os.path.abspath(os.path.join(current_dir, '..'))) 
-print(os.getcwd())
-
 import numpy as np
 import matplotlib.pyplot as plt
 from tabulate import tabulate
 from matplotlib.colors import BoundaryNorm, Normalize
 from matplotlib import cm
+
 from algorithms.lyapunov import equation_name_dd, compute_lyapunov_exponents_from_trajectory
-from utils.plot_information import X_TICK_FONT_SIZE, Y_TICK_FONT_SIZE, X_LABEL_FONT_SIZE, Y_LABEL_FONT_SIZE, PLOT_WIDTH, LEGEND_FONT_SIZE, primary_color, quaternary_color
+from utils.plot_information import (
+    X_TICK_FONT_SIZE, Y_TICK_FONT_SIZE, X_LABEL_FONT_SIZE, Y_LABEL_FONT_SIZE,
+    PLOT_WIDTH, LEGEND_FONT_SIZE, primary_color, quaternary_color
+)
 from algorithms.dynamics import create_trajectories
 
 
-def plot_one_case():
+def plot_one_case() -> None:
     temperature = 20
     periods = 10
     equation = "RP"
@@ -91,7 +88,7 @@ def plot_one_case():
     plt.savefig("results/stable_RP.pdf", format='pdf', bbox_inches='tight')
     plt.show()
 
-def create_composite_figure():
+def create_composite_figure() -> None:
     regimes = ["stable", "transient", "collapse"]
     equations = ["RP", "KM", "G"]
     temperature = 20

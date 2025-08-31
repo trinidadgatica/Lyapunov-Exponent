@@ -1,7 +1,14 @@
+import numpy as np
 import plotly.graph_objs as go
 import plotly.offline as pyo
 
-def plot_lce_histories(times, hist_qr, hist_eig=None, hist_det=None, filename='figures/lyapunov_evolution.html'):
+def plot_lce_histories(
+    times: list | np.ndarray,
+    hist_qr: np.ndarray,
+    hist_eig: np.ndarray = None,
+    hist_det: np.ndarray = None,
+    filename: str = 'figures/lyapunov_evolution.html'
+) -> None:
     traces = [
         go.Scatter(x=times, y=hist_qr[:, 0], mode='lines', name='QR λ₁'),
         go.Scatter(x=times, y=hist_qr[:, 1], mode='lines', name='QR λ₂'),

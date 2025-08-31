@@ -1,14 +1,14 @@
-from scipy.integrate import ode
+import warnings
 import numpy as np
+from scipy.integrate import ode
 
 from algorithms.main import Model
 
-import warnings
 warnings.filterwarnings("ignore")
 
 
 class Solver(Model):
-    def runner_ode_rp(self, t, tstep):
+    def runner_ode_rp(self, t: np.ndarray, tstep: float) -> np.ndarray:
         tau = t
         dtau = tstep
         Y0 = np.array([1, 0])
@@ -24,7 +24,7 @@ class Solver(Model):
 
         return np.array(Y)
 
-    def runner_ode_km(self, t, tstep):
+    def runner_ode_km(self, t: np.ndarray, tstep: float) -> np.ndarray:
         tau = t
         dtau = tstep
         Y0 = np.array([1, 0])
@@ -40,7 +40,7 @@ class Solver(Model):
 
         return np.array(Y)
 
-    def runner_ode_g(self, t, tstep):
+    def runner_ode_g(self, t: np.ndarray, tstep: float) -> np.ndarray:
         tau = t
         dtau = tstep
         Y0 = np.array([1, 0])

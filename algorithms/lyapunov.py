@@ -7,7 +7,7 @@ equation_name_dd['KM'] = 'Keller-Miksis'
 equation_name_dd['G'] = 'Gilmore'
 
 
-def advance_tangent_linear_map(W, J, dt):
+def advance_tangent_linear_map(W: np.ndarray, J: np.ndarray, dt: float) -> np.ndarray:
     """
     One step RK4 for tangent linear map evolution.
     """
@@ -18,7 +18,14 @@ def advance_tangent_linear_map(W, J, dt):
     return W + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
 
 
-def compute_lyapunov_exponents_from_trajectory(radius, velocity, time, model, equation_name, keep=False):
+def compute_lyapunov_exponents_from_trajectory(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    model,
+    equation_name: str,
+    keep: bool = False
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Compute Lyapunov Exponents from trajectory data.
 
@@ -71,7 +78,7 @@ def compute_lyapunov_exponents_from_trajectory(radius, velocity, time, model, eq
         return LCE_vals
 
 
-def find_cut_index(signal, tolerance=1e-6, min_consecutive=3):
+def find_cut_index(signal: np.ndarray, tolerance: float = 1e-6, min_consecutive: int = 3) -> int:
     """
     Finds the index at which to cut a signal due to:
     - NaN values
@@ -91,7 +98,14 @@ def find_cut_index(signal, tolerance=1e-6, min_consecutive=3):
     return len(signal)
 
 
-def compute_lyapunov_grid(grid, equation, temperature, frequency=None, pressure=None, filename_suffix=""):
+def compute_lyapunov_grid(
+    grid: list[tuple[float, float]],
+    equation: str,
+    temperature: float,
+    frequency: float = None,
+    pressure: float = None,
+    filename_suffix: str = ""
+) -> list[np.ndarray]:
     """
     Computes Lyapunov exponents over a grid of (radius, freq) or (radius, pressure).
     
@@ -149,7 +163,13 @@ def compute_lyapunov_grid(grid, equation, temperature, frequency=None, pressure=
     return exponents
 
 
-def compute_eigenvalues(radius, velocity, time, model, equation_name):
+def compute_eigenvalues(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    model,
+    equation_name: str
+) -> np.ndarray:
     """
     Compute eigenvalues of the Jacobian at each time step.
     """
@@ -177,7 +197,14 @@ def compute_eigenvalues(radius, velocity, time, model, equation_name):
     return np.array(eigenvalues)
 
 
-def compute_lyapunov_from_eigenvalue_product(radius, velocity, time, general_model, equation_name, keep=False):
+def compute_lyapunov_from_eigenvalue_product(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    general_model,
+    equation_name: str,
+    keep: bool = False
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Estimate Lyapunov exponents via eigenvalues of the Jacobian product,
     using compute_eigenvalues() to access Jacobians.
@@ -255,7 +282,14 @@ def compute_lyapunov_from_eigenvalue_product(radius, velocity, time, general_mod
         return np.array(lyap_exponents)
 
 
-def compute_lyapunov_sum_from_determinants(radius, velocity, time, general_model, equation_name, keep=False):
+def compute_lyapunov_sum_from_determinants(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    general_model,
+    equation_name: str,
+    keep: bool = False
+) -> float | tuple[float, np.ndarray]:
     """
     Estimate the sum of Lyapunov Exponents using the log-det method.
 
@@ -297,3 +331,253 @@ def compute_lyapunov_sum_from_determinants(radius, velocity, time, general_model
         return sum_LCE, history
     else:
         return sum_LCE
+
+
+def compute_lyapunov_sum_from_determinants_fixed(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    general_model,
+    equation_name: str,
+    keep: bool = False
+) -> float | tuple[float, np.ndarray]:
+    """
+    Sum of Lyapunov exponents via time-average of tr(J) with Kahan summation (model-agnostic).
+
+    This preserves your continuous-time formula while improving floating-point stability.
+    Returns NaN (and NaN history) if any step becomes non-finite.
+
+    Returns
+    -------
+    sum_LCE : float
+        The time-averaged divergence (sum of LCEs).
+    history : ndarray, shape (N,), optional
+        Running time-average; only returned when keep=True.
+    """
+    import numpy as np
+
+    N = len(time)
+    if N < 2:
+        raise ValueError("time array must have length >= 2")
+    # Ensure float64 arrays
+    time = np.asarray(time, dtype=float)
+    radius = np.asarray(radius, dtype=float)
+    velocity = np.asarray(velocity, dtype=float)
+
+    dt = float(time[1] - time[0])
+    T  = N * dt
+
+    # helpers
+    def get_J(R, V, t):
+        if equation_name == 'Rayleigh-Plesset':
+            return general_model.Jacobian_RP(R, V, t)
+        elif equation_name == 'Keller-Miksis':
+            return general_model.Jacobian_KM(R, V, t)
+        elif equation_name == 'Gilmore':
+            return general_model.Jacobian_G(R, V, t)
+        else:
+            raise ValueError('Wrong equation name')
+
+    def kahan_add(sum_val, add_val, comp):
+        y = add_val - comp
+        t = sum_val + y
+        comp = (t - sum_val) - y
+        return t, comp
+
+    sum_tr, comp = 0.0, 0.0
+    bad = False
+    history = np.full(N, np.nan, dtype=float) if keep else None
+
+    for i in range(N):
+        R, V, t = radius[i], velocity[i], time[i]
+        if not bad:
+            try:
+                J = get_J(R, V, t)
+                trJ = float(np.trace(J))
+                if not np.isfinite(trJ):
+                    bad = True
+                else:
+                    incr = trJ * dt
+                    sum_tr, comp = kahan_add(sum_tr, incr, comp)
+            except Exception:
+                bad = True
+
+        if keep:
+            if not bad:
+                history[i] = sum_tr / ((i + 1) * dt)
+            # else: leave NaN
+
+    sum_LCE = np.nan if bad else (sum_tr / T)
+    return (sum_LCE, history) if keep else sum_LCE
+
+
+def compute_lyapunov_from_eigenvalue_product_fixed(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    general_model,
+    equation_name: str,
+    keep: bool = False,
+    max_theta: float = 0.5,
+    rescale_every: int = 50
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+    """
+    Lyapunov exponents via eigenvalues of the cumulative flow map P = Π expm(J_i * dt),
+    using the analytic 2×2 eigenvalue formula (no scipy.eig/schur).
+
+    - Model agnostic: only uses your Jacobian functions.
+    - Stabilization is purely numerical (sub-steps, rescaling).
+    - Returns NaNs instead of raising if anything goes non-finite.
+
+    Returns
+    -------
+    lyap_exponents : ndarray, shape (2,)
+        Sorted (desc) Lyapunov rates.
+    history : ndarray, shape (N, 2), optional
+        Running estimates per step; only returned when keep=True.
+    """
+    import numpy as np
+    from scipy.linalg import expm, norm
+
+    # ---- basic checks / casting ----
+    N = len(time)
+    if N < 2:
+        raise ValueError("time array must have length >= 2")
+
+    time    = np.asarray(time, dtype=float)
+    radius  = np.asarray(radius, dtype=float)
+    velocity= np.asarray(velocity, dtype=float)
+
+    dt = float(time[1] - time[0])
+    T  = N * dt
+    d  = 2
+    eps = 1e-300  # for safe logs
+
+    # ---- helpers ----
+    def get_J(R, V, t):
+        if equation_name == 'Rayleigh-Plesset':
+            return general_model.Jacobian_RP(R, V, t)
+        elif equation_name == 'Keller-Miksis':
+            return general_model.Jacobian_KM(R, V, t)
+        elif equation_name == 'Gilmore':
+            return general_model.Jacobian_G(R, V, t)
+        else:
+            raise ValueError('Wrong equation name')
+
+    def eigvals_2x2(A):
+        """
+        Analytic eigenvalues for 2x2 matrix A (real or complex entries allowed).
+        Returns complex numpy array of shape (2,).
+        """
+        a, b = A[0, 0], A[0, 1]
+        c, d_ = A[1, 0], A[1, 1]
+        tr  = a + d_
+        det = a * d_ - b * c
+        disc = tr * tr - 4.0 * det
+        # Use complex sqrt when needed
+        if np.isreal(disc) and disc >= 0:
+            s = np.sqrt(disc)
+        else:
+            s = np.sqrt(disc + 0j)
+        lam1 = 0.5 * (tr + s)
+        lam2 = 0.5 * (tr - s)
+        return np.array([lam1, lam2], dtype=complex)
+
+    def safe_flow_map(J, dt_local, max_theta_local):
+        """
+        Compute expm(J*dt_local). If ||J||*dt is large, split into substeps to improve stability.
+        Returns (Phi, log_scale_step) or (None, np.nan) on failure.
+        """
+        try:
+            theta = norm(J, ord=np.inf) * abs(dt_local)
+        except Exception:
+            return None, np.nan
+
+        m = int(np.ceil(theta / max_theta_local)) if np.isfinite(theta) and theta > 0 else 1
+        dt_sub = dt_local / m
+
+        # one small substep
+        try:
+            Phi_sub = expm(J * dt_sub)
+            if not np.isfinite(Phi_sub).all():
+                return None, np.nan
+        except Exception:
+            return None, np.nan
+
+        # accumulate m substeps with scaling
+        Pstep = np.eye(d)
+        log_scale_step = 0.0
+        for _ in range(m):
+            Pstep = Phi_sub @ Pstep
+            s = norm(Pstep, ord='fro')
+            if not np.isfinite(s) or s <= 0:
+                return None, np.nan
+            Pstep /= s
+            log_scale_step += np.log(s)
+        return Pstep, log_scale_step
+
+    # ---- main loop ----
+    P = np.eye(d)
+    log_scale = 0.0
+    bad = False
+    history = np.full((N, d), np.nan, dtype=float) if keep else None
+
+    for i in range(N):
+        R, V, t = radius[i], velocity[i], time[i]
+
+        # Jacobian
+        try:
+            J = get_J(R, V, t)
+            if not np.isfinite(J).all():
+                bad = True
+        except Exception:
+            bad = True
+
+        # Per-step flow map with sub-steps if needed
+        if not bad:
+            Phi, add_log = safe_flow_map(J, dt, max_theta)
+            if Phi is None or not np.isfinite(Phi).all():
+                bad = True
+            else:
+                P = Phi @ P
+                log_scale += add_log
+
+        # Periodic rescale of P
+        if not bad and ((i + 1) % rescale_every == 0):
+            s = norm(P, ord='fro')
+            if not np.isfinite(s) or s <= 0:
+                bad = True
+            else:
+                P /= s
+                log_scale += np.log(s)
+
+        # Running history (analytic 2x2 eigenvalues)
+        if keep:
+            if not bad:
+                try:
+                    ev = eigvals_2x2(P)  # complex allowed
+                    logs = np.log(np.maximum(np.abs(ev), eps)) + log_scale
+                    lam  = (logs / ((i + 1) * dt)).real
+                    lam_sorted = np.sort(lam)[::-1]
+                    out = np.full(d, np.nan, dtype=float)
+                    out[:min(d, lam_sorted.size)] = lam_sorted[:d]
+                    history[i, :] = out
+                except Exception:
+                    bad = True
+            # else: leave NaN
+
+    # Final exponents (analytic 2x2 eigenvalues)
+    if bad:
+        lyap_exponents = np.array([np.nan, np.nan], dtype=float)
+    else:
+        try:
+            ev = eigvals_2x2(P)
+            logs = np.log(np.maximum(np.abs(ev), eps)) + log_scale
+            lam  = (logs / T).real
+            lam_sorted = np.sort(lam)[::-1]
+            lyap_exponents = np.full(d, np.nan, dtype=float)
+            lyap_exponents[:min(d, lam_sorted.size)] = lam_sorted[:d]
+        except Exception:
+            lyap_exponents = np.array([np.nan, np.nan], dtype=float)
+
+    return (lyap_exponents, history) if keep else lyap_exponents

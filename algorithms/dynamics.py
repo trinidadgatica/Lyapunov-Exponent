@@ -7,13 +7,29 @@ ATMOSPHERIC_PRESSURE = 1e5
 ADIABATIC_INDEX = 1.33
 VAPOR_PRESSURE = 3.2718e3
 
-def create_trajectories(equation_list, temperature, acoustic_pressure, frequency, initial_radius, times, step):
+def create_trajectories(
+    equation_list: list,
+    temperature: float,
+    acoustic_pressure: float,
+    frequency: float,
+    initial_radius: float,
+    times: np.ndarray,
+    step: float
+) -> tuple[dict, ExperimentMaker]:
     """
     Generates bubble dynamics trajectories using selected models.
 
+    Args:
+        equation_list (list): List of model equation names ('RP', 'KM', 'G').
+        temperature (float): Fluid temperature.
+        acoustic_pressure (float): Acoustic pressure.
+        frequency (float): Driving frequency.
+        initial_radius (float): Initial bubble radius.
+        times (np.ndarray): Array of time points.
+        step (float): Integration step size.
+
     Returns:
-        dict: Simulation results per equation.
-        ExperimentMaker: Initialized model for Jacobian access.
+        tuple: (dict of simulation results per equation, ExperimentMaker instance)
     """
     initial_velocity = 0
 

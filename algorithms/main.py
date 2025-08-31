@@ -1,11 +1,24 @@
-import numpy as np
 import warnings
+import numpy as np
+
 warnings.filterwarnings("ignore")
 
 
 class Model:
-
-    def __init__(self, pa, f, r0, j0, p0, sigma, rho, mu, c, pv, kappa):
+    def __init__(
+        self,
+        pa: float,
+        f: float,
+        r0: float,
+        j0: float,
+        p0: float,
+        sigma: float,
+        rho: float,
+        mu: float,
+        c: float,
+        pv: float,
+        kappa: float
+    ):
         self.acoustic_pressure = -pa
         self.frequency = f
         self.initial_radius = r0
@@ -31,7 +44,7 @@ class Model:
         self.eq_2_history = list()
         self.eq_3_history = list()
 
-    def calculate_constants(self, time):
+    def calculate_constants(self, time: np.ndarray) -> list:
         """
         In an array of time, calculate the values of constants for the Rayleigh-Plesset equation.
 
@@ -55,61 +68,7 @@ class Model:
         return [reynolds_number_fl, weber_number_fl, thoma_number_fl, pressure_in_infinity_fl,
                 non_dimensional_initial_pressure_fl]
 
-    def simple_rayleigh_plesset_equation(self, time, initial_variable):
-        """
-        Calculates a simplified version of the Rayleigh-Plesset equation. This version doesn't consider the effects of surface tension and viscosity.
-
-        :param initial_variable: Set of two variables, one for radius and one for velocity.
-        :type initial_variable: Tuple[float, float]
-
-        :param time: Array of time values.
-        :type time: numpy.ndarray
-
-        :return: Tuple containing velocity and radius schemes for the given configuration of parameters.
-        :rtype: Tuple[numpy.ndarray, numpy.ndarray]
-
-        Note: This equation doesn't consider any type of damping for the system.
-        """
-
-        rn, jn = initial_variable
-        pl = 0
-        p_in = (self.atmospheric_pressure + 2 / self.initial_radius)
-        p_out = - self.acoustic_pressure * np.sin(self.angular_frequency * time * self.period)
-        pressure = p_in + p_out
-
-        eq_1 = 1 / rn
-        eq_2 = -(3 / 2) * (jn ** 2)
-        eq_3 = ((self.period ** 2) / (self.initial_radius ** 2))
-        eq_4 = (pl - self.atmospheric_pressure + pressure) / self.density
-        return [jn, eq_1 * (eq_2 + eq_3 * eq_4)]
-
-    def intermediate_rayleigh_plesset_equation(self, time, initial_variable):
-        """
-        Calculates a simplified version of the Rayleigh-Plesset equation. This version doesn't consider the effects of viscosity.
-
-        :param initial_variable: Set of two variables, one for radius and one for velocity.
-        :type initial_variable: Tuple[float, float]
-
-        :param time: Array of time values.
-        :type time: numpy.ndarray
-
-        :return: Tuple containing velocity and radius schemes for the given configuration of parameters.
-        :rtype: Tuple[numpy.ndarray, numpy.ndarray]
-        """
-
-        rn, jn = initial_variable
-        p_out = - self.acoustic_pressure * np.sin(self.angular_frequency * time * self.period)
-
-        eq_1 = 1 / rn
-        eq_2 = -(3 / 2) * (jn ** 2)
-        eq_3 = (self.period ** 2) / (self.initial_radius ** 2 * self.density)
-        eq_4 = (self.atmospheric_pressure + (2 * self.surface_tension / self.initial_radius) -
-                self.vapor_pressure) / (rn ** (3 * self.adiabatic_index))
-        eq_5 = self.vapor_pressure - self.atmospheric_pressure + p_out - 2 * self.surface_tension / \
-               (rn * self.initial_radius)
-        return [jn, eq_1 * (eq_2 + eq_3 * (eq_4 + eq_5))]
-
-    def rayleigh_plesset_equation(self, time, initial_variable):
+    def rayleigh_plesset_equation(self, time: np.ndarray, initial_variable: tuple[float, float]) -> list:
         """
         Calculates the Rayleigh-Plesset equation for a specified time interval.
 
@@ -138,7 +97,7 @@ class Model:
 
         return [jn, eq_1 * (eq_2 + eq_3 + eq_4 + eq_5 + eq_6)]
 
-    def keller_miksis_equation(self, time, initial_variable):
+    def keller_miksis_equation(self, time: np.ndarray, initial_variable: tuple[float, float]) -> list:
         """
         Solves the Keller-Miksis equation over a specified time interval.
 
@@ -179,7 +138,7 @@ class Model:
 
         return [jn, (1 / eq_1) * (eq_2 + eq_3 * (eq_4 + eq_5 * (eq_6 + eq_7 + eq_8 + eq_9)))]
 
-    def enthalpy(self, r, j, time, n, A, B):
+    def enthalpy(self, r: np.ndarray, j: np.ndarray, time: np.ndarray, n: float, A: float, B: float) -> np.ndarray:
         """
         Calculate the enthalpy in a time interval.
 
@@ -230,9 +189,8 @@ class Model:
         self.eq_3_history.append(eq_3)
         self.time_history.append(time)
         return eq_4
-    
 
-    def dimensional_enthalpy(self, r, j, time, n, A, B):
+    def dimensional_enthalpy(self, r: np.ndarray, j: np.ndarray, time: np.ndarray, n: float, A: float, B: float) -> np.ndarray:
         """
         Calculate the enthalpy in a time interval.
 
@@ -272,7 +230,7 @@ class Model:
 
         return eq_4
 
-    def common_factor_gilmore(self, r, j, B):
+    def common_factor_gilmore(self, r: np.ndarray, j: np.ndarray, B: float) -> np.ndarray:
         non_dimensional_atmospheric_pressure = self.atmospheric_pressure / self.atmospheric_pressure
         non_dimensional_initial_radius = self.initial_radius / self.initial_radius
         non_dimensional_surface_tension = self.surface_tension / (self.atmospheric_pressure * self.initial_radius)
@@ -285,7 +243,7 @@ class Model:
                 (B / self.atmospheric_pressure))
         return eq_2
 
-    def delta_enthalpy(self, r, j, time, n, A, B):
+    def delta_enthalpy(self, r: np.ndarray, j: np.ndarray, time: np.ndarray, n: float, A: float, B: float) -> np.ndarray:
         """
         Calculate the derivative of enthalpy in a time interval.
 
@@ -338,7 +296,7 @@ class Model:
 
         return eq_6
 
-    def gilmore_equation(self, time, initial_variable):
+    def gilmore_equation(self, time: np.ndarray, initial_variable: tuple[float, float]) -> list:
         """
         Solves the Gilmore equation over a specified time interval.
 

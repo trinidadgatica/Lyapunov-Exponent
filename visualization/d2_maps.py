@@ -1,17 +1,17 @@
-import sys
-import os
-
-current_dir = os.getcwd()
-sys.path.append(os.path.abspath(os.path.join(current_dir, '..'))) 
-print(os.getcwd())
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from algorithms.dimensions import compute_lyapunov_dimensions
 from utils.plot_information import *
 
-def create_d2_map_fixed_freq(initial_radii, pressures, grid_size, results, equation_name):
+
+def create_d2_map_fixed_freq(
+    initial_radii: np.ndarray,
+    pressures: np.ndarray,
+    grid_size: int,
+    results: np.ndarray,
+    equation_name: str
+) -> None:
     """
     Create D₂ contour plot for constant frequency across pressure-radius space.
     """
@@ -43,7 +43,14 @@ def create_d2_map_fixed_freq(initial_radii, pressures, grid_size, results, equat
     plt.show()
 
 
-def create_d2_map_fixed_pa(initial_radii, freqs, grid_size, results, equation_name, low_pressure=False):
+def create_d2_map_fixed_pa(
+    initial_radii: np.ndarray,
+    freqs: np.ndarray,
+    grid_size: int,
+    results: np.ndarray,
+    equation_name: str,
+    low_pressure: bool = False
+) -> None:
     """
     Create D₂ contour plot for constant pressure across freq-radius space.
     """

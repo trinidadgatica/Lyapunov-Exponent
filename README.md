@@ -1,49 +1,82 @@
-# Lyapunov-Exponent
+# Lyapunov‑Exponent — Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics
 
-Repository for the numerical analysis and computation of Lyapunov exponents in nonlinear bubble dynamics models.  
-This work supports the study of acoustic cavitation regimes by providing robust, model-based algorithms for estimating Lyapunov exponents from physics-based simulations.
+> **Paper:** **Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics**  
+> **DOI:** _coming soon_
 
-## Overview
+---
 
-This repository contains implementations of algorithms for computing Lyapunov exponents in bubble dynamics, focusing on three key physical models:
+## Abstract
+Bubble dynamics are highly nonlinear and can exhibit complex behaviors, including transitions to chaos. A standard approach for characterizing the dynamics is to calculate the Lyapunov exponents, which are a measure of sensitivity to initial conditions and identify the final states of the bubbles. The numerical methods available for calculating Lyapunov exponents often lack numerical stability when applied to intricate dynamical regimes of bubble oscillations, involving large oscillations. To address this limitation, we have developed a new algorithm that combines the Benettin method with QR orthonormalization and incorporates analytical Jacobians derived from the main bubble dynamics models; including the Rayleigh–Plesset, Keller–Miksis, and Gilmore equations. Benchmark comparisons against established numerical methods and validation with the Lorenz system demonstrate that our approach achieves stable and consistent results across a range of conditions and complex bubble dynamics, highlighting its reliability for the study of chaotic behavior in bubble dynamics.
 
-- **Rayleigh–Plesset (RP)** equation  
-- **Keller–Miksis (KM)** equation  
-- **Gilmore (G)** equation  
+---
 
-We compare several approaches, including:
-- **QR-based Benettin algorithm** (trajectory-based)  
-- **Eigenvalue product method** (from cumulative Jacobians)  
-- **Log-determinant method** (sum of exponents)  
+## Installation (recommended: isolated `.venv`).
 
-The goal is to provide numerically stable and accurate tools to classify cavitation regimes — stable, transient, and strongly unstable — across a wide range of physical parameters.  
-These tools are useful in biomedical ultrasound, sonochemistry, and nonlinear acoustics research.
-
-## Features
-
-- Full numerical solvers for RP, KM, and G equations.
-- Exact Jacobian computations for each model.
-- Multiple Lyapunov exponent estimation methods for comparison.
-- Grid-based parameter sweeps with automated logging and cut-off detection.
-- Heatmap and time-series visualizations.
-- Ready-to-use scripts for reproducible experiments in `runners/`.
-
-## Installation
-
-A recent Python version and the following packages are required:
-
+### 1) Clone the repo
 ```bash
-conda install numpy scipy matplotlib pandas plotly
-````
-## Citation
+git clone https://github.com/<your-org>/Lyapunov-Exponent.git
+cd Lyapunov-Exponent
+```
 
-If you use this repository in your research, please cite the following:
+### 2) Create & activate a virtual environment
 
-### BibTeX
+**Windows (PowerShell)**
+```powershell
+# from repo root
+python -m venv .venv
 
-```bibtex
+# then activate
+. .\.venv\Scripts\Activate.ps1
+```
 
-````
+**macOS / Linux**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-### APA 
+### 3) Install dependencies
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 4) (Optional but recommended) Editable install for clean imports
+```bash
+pip install -e .
+```
+After this, imports like `from algorithms.lyapunov import compute_lyapunov_exponents_from_trajectory` work from anywhere inside the repo.
+
+---
+
+## Configuration
+
+### Results directory
+By default, results are written to `results/`. You can override this via an environment variable:
+
+**Windows (PowerShell):**
+```powershell
+$env:LYAP_RESULTS_DIR = "C:\\path\\to\\Lyapunov-Exponent\\results"
+```
+
+**macOS / Linux:**
+```bash
+export LYAP_RESULTS_DIR="/absolute/path/to/Lyapunov-Exponent/results"
+```
+
+(If unset, the library falls back to `./results`. Make sure the folder exists or is creatable.)
+
+---
+
+## Citing this work
+If you use this library or its results, please cite the paper:
+
+> **Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics**.  
+> **DOI:** _coming soon_
+
+A BibTeX entry will be added here once the DOI is assigned.
+
+---
+
+## Acknowledgments
 

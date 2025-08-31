@@ -1,19 +1,25 @@
 import numpy as np
 
-def compute_lyapunov_dimensions(exponents):
+def compute_lyapunov_dimensions(exponents: np.ndarray) -> dict:
     """
     Compute Kaplan–Yorke and approximate correlation dimension D₂ from Lyapunov exponents.
-    """
-    λ1, λ2 = exponents
 
-    if not np.isfinite(λ1) or not np.isfinite(λ2):
+    Args:
+        exponents (np.ndarray): Array-like of Lyapunov exponents [lambda_1, lambda_2].
+
+    Returns:
+        dict: Dictionary with 'Kaplan–Yorke' and 'Correlation D₂ (approx)' as keys.
+    """
+    lambda_1, lambda_2 = exponents
+
+    if not np.isfinite(lambda_1) or not np.isfinite(lambda_2):
         return {"Kaplan–Yorke": np.nan, "Correlation D₂ (approx)": np.nan}
 
-    if λ1 > 0 and λ2 != 0:
-        d_ky = 1 + λ1 / abs(λ2)
-        d2 = λ1 / abs(λ2)
+    if lambda_1 > 0 and lambda_2 != 0:
+        kaplan_yorke_dim = 1 + lambda_1 / abs(lambda_2)
+        correlation_d2 = lambda_1 / abs(lambda_2)
     else:
-        d_ky = 1.0
-        d2 = 0.0
+        kaplan_yorke_dim = 1.0
+        correlation_d2 = 0.0
 
-    return {"Kaplan–Yorke": d_ky, "Correlation D₂ (approx)": d2}
+    return {"Kaplan–Yorke": kaplan_yorke_dim, "Correlation D₂ (approx)": correlation_d2}
