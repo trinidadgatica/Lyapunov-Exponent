@@ -36,8 +36,25 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 
-# Project outputs (don’t push experiment results/logs)
+# Project outputs
 results/
 loggers/
-# add more generated dirs below as needed:
-# other-folder/
+
+# Bytecode / caches (extra safety)
+**/__pycache__/
+*.pyc
+
+# Generated figures / exports
+*.pdf
+*.html
+
+# Numerical outputs
+*.npy
+*.npz
+*.xlsx
+
+# Local scratch exports
+*_data.txt
+
+# Egg-info should not be tracked
+*.egg-info/
