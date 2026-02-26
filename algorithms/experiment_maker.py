@@ -345,7 +345,7 @@ class ExperimentMaker(Model):
             + 4 * mu * x2 ** 2 / ((T ** 2) * (x1 ** 2))
         )
         NHD = NH4 ** (-1 / n)
-        NHE = PA * np.cos(2 * np.pi * tau * T) * 2 * np.pi
+        NHE = PA * np.cos(2 * np.pi * tau * T) * 2 * np.pi * T 
 
         dH = NHA * (NHB * NHC - NHD * NHE)
         

@@ -5,6 +5,7 @@ Module for computing Lyapunov exponents and benchmarking methods for the Lorenz 
 import time
 import numpy as np
 import nolds
+from numpy.linalg import norm, qr
 from scipy.integrate import solve_ivp
 
 def lorenz(t: float, state: list[float], sigma: float, rho: float, beta: float) -> list[float]:
@@ -22,6 +23,16 @@ def jacobian_lorenz(x: float, y: float, z: float, sigma: float, rho: float, beta
         [y, x, -beta]
     ])
 
+def advance_tangent_linear_map(W: np.ndarray, J: np.ndarray, dt: float) -> np.ndarray:
+    """
+    One step RK4 for tangent linear map evolution.
+    """
+    k1 = J @ W
+    k2 = J @ (W + 0.5 * dt * k1)
+    k3 = J @ (W + 0.5 * dt * k2)
+    k4 = J @ (W + dt * k3)
+    return W + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
+
 
 def compute_lce_qr_lorenz(
     x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
@@ -36,7 +47,9 @@ def compute_lce_qr_lorenz(
 
     for i in range(N):
         J = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
-        W = W + dt * J @ W
+
+        W = advance_tangent_linear_map(W, J, dt)
+        # W = W + dt * J @ W
         W, R = np.linalg.qr(W)
         for j in range(d):
             LCE_vals[j] += np.log(np.abs(R[j, j]))
@@ -46,55 +59,164 @@ def compute_lce_qr_lorenz(
     LCE_vals = LCE_vals / (N * dt)
     return (LCE_vals, history) if keep else LCE_vals
 
+def _phi_from_J(J: np.ndarray, dt: float) -> np.ndarray:
+    """Per-step flow propagator Phi ≈ exp(J*dt) """
+    A = J * dt
 
-def compute_lce_det_lorenz(
-    x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
-    sigma: float, rho: float, beta: float, keep: bool = False
-) -> tuple[float, np.ndarray] | float:
-    N = len(time)
-    dt = time[1] - time[0]
-    sum_log_det = 0.0
-    history = np.zeros(N) if keep else None
-
-    for i in range(N):
-        J = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
-        det_J = np.linalg.det(J)
-        sum_log_det += np.log(np.abs(det_J))
-        if keep:
-            history[i] = sum_log_det / ((i + 1) * dt)
-
-    sum_LCE = sum_log_det / (N * dt)
-    return (sum_LCE, history) if keep else sum_LCE
+    return np.eye(J.shape[0]) + A + 0.5 * (A @ A)
 
 
-def compute_lce_eigprod_lorenz(
+def compute_lyapunov_from_eigenvalue_product_lorenz(
     x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
     sigma: float, rho: float, beta: float, keep: bool = False
 ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
-    d = 3
+    """
+    Lyapunov exponents for Lorenz via Eq. (6.18)-style product-of-maps:
+      Product P = Φ_{N-1} ... Φ_0, with Φ_i ≈ exp(J_mid * Δt).
+    We avoid overflow by maintaining P ≡ Q @ T (QR similarity), so eigenvalues(P)=eig(T).
+    LEs = log|eig(T)| / (time[-1] - time[0]).
+
+    Inputs follow your usual signature (x,y,z,time,sigma,rho,beta,keep).
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    z = np.asarray(z, dtype=float)
+    time = np.asarray(time, dtype=float)
+
     N = len(time)
-    dt = time[1] - time[0]
-    J_total = np.eye(d)
-    history = np.full((N, d), np.nan) if keep else None
+    assert len(x) == len(y) == len(z) == N, "x,y,z,time must have same length"
+    if N < 2:
+        raise ValueError("Need at least two samples.")
+    if not np.all(np.diff(time) > 0):
+        raise ValueError("time must be strictly increasing.")
+
+    d = 3
+    # Maintain product as Q @ T (T upper-triangular) so eig(product) = eig(T).
+    Q = np.eye(d)
+    T = np.eye(d)
+
+    if keep:
+        history = np.zeros((N, d))
+    t0 = time[0]
+    dt = time[1] - time[0]  # assume constant step size
+
+    for i in range(N):
+        # Midpoint state for better local accuracy
+        #xm = 0.5 * (x[i] + x[i + 1])
+        #ym = 0.5 * (y[i] + y[i + 1])
+        #zm = 0.5 * (z[i] + z[i + 1])
+
+        J = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
+        Phi = _phi_from_J(J, dt)
+
+        # Update product: P <- Φ @ P while keeping P = Q @ T
+        Z = Phi @ Q
+        Q, R = np.linalg.qr(Z, mode="reduced")
+        T = R @ T  # stays upper-triangular; accumulates safely
+
+        if keep:
+            evals = np.linalg.eigvals(T)
+            lam_running = np.log(np.abs(evals) + np.finfo(float).tiny) / (dt * i)
+            history[i] = lam_running
+
+    # Final exponents
+    evals_final = np.linalg.eigvals(T)
+    LCE = np.log(np.abs(evals_final) + np.finfo(float).tiny) / (time[-1] - time[0])
+    LCE = np.sort(LCE)[::-1]
+
+    if keep:
+        return LCE, history
+    return LCE
+
+def compute_lyapunov_sum_from_determinants_lorenz(
+    x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
+    sigma: float, rho: float, beta: float,
+    keep: bool = False,
+) -> float | tuple[float, np.ndarray]:
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    z = np.asarray(z, dtype=float)
+    t = np.asarray(time, dtype=float)
+
+    if not (x.shape == y.shape == z.shape == t.shape):
+        raise ValueError("x, y, z, and time must have the same shape.")
+    N = x.size
+    if N < 2:
+        raise ValueError("Need at least two samples.")
+
+    dt = float(t[1] - t[0])
+    total_logdet = 0.0
+    c = 0.0
+    elapsed = 0.0
+    hist = np.empty(N - 1, float) if keep else None
 
     for i in range(N):
         J = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
-        J_total = J @ J_total
+        # step = dt * float(np.trace(J))
+        M = np.eye(J.shape[0]) + dt * J
+        sign, logdet = np.linalg.slogdet(M)     # ~ dt*tr(J) + O(dt^2)
+        step =  float(logdet) if sign != 0 else np.nan
+
+        # Kahan summation
+        yk = step - c
+        sk = total_logdet + yk
+        c  = (sk - total_logdet) - yk
+        total_logdet = sk
+
+        elapsed += dt
+        if keep:
+            hist[i] = total_logdet / elapsed
+
+    sum_lce = total_logdet / elapsed
+    return (sum_lce, hist) if keep else sum_lce
+
+
+
+def compute_lyapunov_sum_from_determinants_lorenz1(
+    x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
+    sigma: float, rho: float, beta: float, keep: bool = False
+) -> float | tuple[float, np.ndarray]:
+    """
+    Sum of Lyapunov exponents for Lorenz using the continuous-time trace route:
+        sum_i λ_i ≈ (1/N) Σ_k tr(J_c(x_k))   (per unit time)
+
+    Returns a scalar (per unit time). If keep=True, also returns the running estimate.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    z = np.asarray(z, dtype=float)
+    t = np.asarray(time, dtype=float)
+
+    if not (x.shape == y.shape == z.shape == t.shape):
+        raise ValueError("x, y, z, and time must have the same shape.")
+    N = x.size
+    if N < 2:
+        raise ValueError("Need at least two samples.")
+
+    dt = float(t[1] - t[0])
+    if not np.allclose(np.diff(t), dt, rtol=1e-6, atol=1e-12):
+        raise ValueError("time must be uniformly spaced.")
+
+    total = 0.0
+    comp = 0.0  # Kahan compensation
+    history = np.empty(N, dtype=float) if keep else None
+
+    for i in range(N):
+        Jc = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
+        trJ = float(np.trace(Jc))
+
+        # Kahan summation
+        yk = trJ - comp
+        sk = total + yk
+        comp = (sk - total) - yk
+        total = sk
 
         if keep:
-            if np.any(np.isnan(J_total)) or np.any(np.isinf(J_total)):
-                print(f"[WARNING] NaN/Inf in J_total at step {i}, rho={rho}")
-                break
-            eigvals = np.linalg.eigvals(J_total)
-            lyap_step = [np.log(abs(ev)) / ((i + 1) * dt) for ev in eigvals]
-            history[i, :] = np.real(lyap_step)
+            history[i] = total / (i + 1)  # per-unit-time estimate
 
-    if np.any(np.isnan(J_total)) or np.any(np.isinf(J_total)):
-        return [np.nan] * d, history
+    sum_LCE = total / N  # per-unit-time
+    return (sum_LCE, history) if keep else sum_LCE
 
-    eigvals = np.linalg.eigvals(J_total)
-    lyap_exponents = [np.log(abs(ev)) / (N * dt) for ev in eigvals]
-    return (np.real(lyap_exponents), history) if keep else np.real(lyap_exponents)
 
 def compute_lce_eckmann(x_1d: np.ndarray, dt: float, params: dict) -> np.ndarray:
     """
@@ -185,7 +307,28 @@ def benchmark_case(
         sigma=case["sigma"], rho=case["rho"], beta=case["beta"]
     ))
 
-    # 2) Eckmann (nolds.lyap_e)
+    # 2) EIGENVALUE PRODUCT
+    t0_perf = time.perf_counter()
+    lce_eig = compute_lyapunov_from_eigenvalue_product_lorenz(x, y, z, t_keep, case["sigma"], case["rho"], case["beta"], keep=False)
+    t_qr = time.perf_counter() - t0_perf
+    rows.append(dict(
+        case=case["name"], method="EIG", time_sec=t_qr,
+        lce1=float(lce_eig[0]), lce2=float(lce_eig[1]), lce3=float(lce_eig[2]),
+        sigma=case["sigma"], rho=case["rho"], beta=case["beta"]
+    ))
+    
+    # 3) Determinant
+    t0_perf = time.perf_counter()
+    lce_det = compute_lyapunov_sum_from_determinants_lorenz(x, y, z, t_keep, case["sigma"], case["rho"], case["beta"], keep=False)
+    t_qr = time.perf_counter() - t0_perf
+    rows.append(dict(
+        case=case["name"], method="DET", time_sec=t_qr,
+        lce1=float(lce_det),
+        sigma=case["sigma"], rho=case["rho"], beta=case["beta"]
+    ))
+    
+
+    # 4) Eckmann (nolds.lyap_e)
     t0_perf = time.perf_counter()
     lce_eck = compute_lce_eckmann(obs, dt, eck_params)
     t_eck = time.perf_counter() - t0_perf
@@ -198,7 +341,7 @@ def benchmark_case(
         sigma=case["sigma"], rho=case["rho"], beta=case["beta"]
     ))
 
-    # 3) Rosenstein (nolds.lyap_r)
+    # 5) Rosenstein (nolds.lyap_r)
     t0_perf = time.perf_counter()
     lce_ros = compute_lce_rosenstein(obs, dt, ros_params)
     t_ros = time.perf_counter() - t0_perf

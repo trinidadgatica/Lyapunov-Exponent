@@ -27,7 +27,7 @@ for cfg_name, p_init_pa, freq_hz, r_init_m in configs:
 
     # time grid and last-1-period indices
     t_grid = np.arange(0, n_periods / freq_hz, dt / freq_hz)
-    idx_last1 = get_last_period_indices(t_grid, freq_hz, n_periods, 1)
+    idx_last1 = get_last_period_indices(t_grid, freq_hz, n_periods, 2)
 
     # integrate & compute histories
     lce_qr, lce_eig, lce_det, hist_qr, hist_eig, hist_det = run_lce_method_comparison(
@@ -46,6 +46,13 @@ for cfg_name, p_init_pa, freq_hz, r_init_m in configs:
         "Eigen λ2": seg_eig_last1[:, 1],
         "Det λ1":   seg_det_last1,
     }
+    means = {
+        "QR λ1":    float(np.mean(seg_qr_last1[:, 0])),
+        "QR λ2":    float(np.mean(seg_qr_last1[:, 1])),
+        "Eigen λ1": float(np.mean(seg_eig_last1[:, 0])),
+        "Eigen λ2": float(np.mean(seg_eig_last1[:, 1])),
+        "Det λ1":   float(np.mean(seg_det_last1)),
+    }
     finals = {
         "QR λ1":    float(hist_qr[-1, 0]),
         "QR λ2":    float(hist_qr[-1, 1]),
@@ -54,8 +61,9 @@ for cfg_name, p_init_pa, freq_hz, r_init_m in configs:
         "Det λ1":   float(hist_det[-1]),
     }
 
+
     table = last1_summary_table(
-        last1, finals,
+        last1, means, 
         order=["QR λ1", "QR λ2", "Eigen λ1", "Eigen λ2", "Det λ1"],
         decimals=3,
     )

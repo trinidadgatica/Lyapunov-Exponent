@@ -1,6 +1,21 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Run C3 (Gilmore) and estimate Lyapunov exponents from the first 1061 points
+using a robust grid search for Eckmann (spectrum) and Rosenstein (LLE).
+
+This script is self-contained: it defines the full grid-search + helpers here,
+and only relies on your existing simulation + LCE implementations:
+- algorithms.dynamics.create_trajectories
+- algorithms.lorenz_lyapunov.compute_lce_eckmann
+- algorithms.lorenz_lyapunov.compute_lce_rosenstein
+"""
+
+from __future__ import annotations
+
 import numpy as np
 from typing import Dict, Any, Iterable, List, Tuple
-
 
 from algorithms.dynamics import create_trajectories
 from algorithms.lorenz_lyapunov import (
@@ -16,17 +31,20 @@ THEILER_MULTS: Tuple[int, ...] = (1, 2, 3)       # min_tsep = k * tau (will be c
 TRAJ_LEN_FRACS: Tuple[float, ...] = (0.15, 0.25, 0.35)
 USE_LOG_RADIUS = False                            # set True if collapse spikes dominate
 
+
 # ===================== UTILITIES =====================
 def _standardize(x: np.ndarray) -> np.ndarray:
     x = np.asarray(x, float)
     mu, sd = float(np.mean(x)), float(np.std(x))
     return (x - mu) / (sd + 1e-12)
 
+
 def _window_slices(n: int, win: int, step: int):
     i = 0
     while i + win <= n:
         yield slice(i, i + win)
         i += step
+
 
 def _stability_cv(vals: np.ndarray) -> float:
     v = np.asarray(vals, float)
@@ -36,12 +54,14 @@ def _stability_cv(vals: np.ndarray) -> float:
     mu, sd = float(np.mean(v)), float(np.std(v))
     return float(sd / (abs(mu) + 1e-12))
 
+
 def _make_tau_grid(dt: float, drive_freq_hz: float,
                    base: Iterable[int]) -> List[int]:
     """Base grid plus points near the period (T/6..T/12)."""
     per = max(1, int(round((1.0 / float(drive_freq_hz)) / dt)))
     extra = {max(1, int(round(per / d))) for d in (12, 10, 8, 6)}
     return sorted(set(base) | extra)
+
 
 # ===================== CORE WRAPPERS (using your fns) =====================
 def _eckmann_spec(x: np.ndarray, dt: float, emb_dim: int, tau: int, min_tsep: int) -> np.ndarray:
@@ -54,6 +74,7 @@ def _eckmann_spec(x: np.ndarray, dt: float, emb_dim: int, tau: int, min_tsep: in
     )
     return compute_lce_eckmann(x, dt, params)
 
+
 def _rosenstein_lle(x: np.ndarray, dt: float, emb_dim: int, tau: int, min_tsep: int, trajectory_len: int) -> float:
     params = dict(
         emb_dim=emb_dim,
@@ -63,6 +84,7 @@ def _rosenstein_lle(x: np.ndarray, dt: float, emb_dim: int, tau: int, min_tsep: 
         fit="RANSAC",
     )
     return compute_lce_rosenstein(x, dt, params)
+
 
 # ===================== GRID SEARCH (robust) =====================
 def find_best_params_grid(
@@ -85,7 +107,7 @@ def find_best_params_grid(
 
     # Geometry from period and dataset length
     period_samples = max(1, int(round((1.0 / drive_freq_hz) / dt)))
-    win = min(max(2 * period_samples, 600), max(200, n // 3))   # ~2 periods, at least 600, at most n//3
+    win = min(max(2 * period_samples, 600), max(200, n // 3))   # ~2 periods, ≥600, ≤ n//3
     step = max(100, win // 2)
     wins = list(_window_slices(n, win, step))
     if len(wins) < 2:
@@ -97,6 +119,7 @@ def find_best_params_grid(
 
     # Cap Rosenstein trajectory length by window and series
     traj_len_fracs = tuple(sorted(set(traj_len_fracs)))
+
     def _cap_traj_len(tl: int) -> int:
         return int(min(max(20, tl), win // 2, n // 3))
 
@@ -201,10 +224,11 @@ def find_best_params_grid(
 
     # -------- robust fallback if grid found nothing --------
     if "params" not in best:
-        tau_def = max(1, period_samples // 10)
+        tau_def = max(1, max(1, int(round((1.0 / drive_freq_hz) / dt))) // 10)
         m_def = min(max(EMB_GRID), max(MATRIX_DIM, min(EMB_GRID)))
-        theiler_def = min(max(period_samples, 3 * tau_def), max(period_samples, n // 6))
-        tl_def = _cap_traj_len(int(0.2 * n))
+        theiler_def = min(max(int(round((1.0 / drive_freq_hz) / dt)), 3 * tau_def),
+                          max(int(round((1.0 / drive_freq_hz) / dt)), len(radius) // 6))
+        tl_def = int(min(max(20, int(0.2 * len(radius))), (len(radius) // 3)))
 
         spec_full = _eckmann_spec(x, dt, m_def, tau_def, theiler_def)
         lle_full = _rosenstein_lle(x, dt, m_def, tau_def, theiler_def, tl_def)
@@ -220,8 +244,8 @@ def find_best_params_grid(
                 "trajectory_len": int(tl_def),
                 "use_log_radius": bool(use_log_radius),
                 "drive_freq_hz": float(drive_freq_hz),
-                "window_len": int(win),
-                "window_step": int(step)
+                "window_len": int(min(max(2 * int(round((1.0 / drive_freq_hz) / dt)), 600), max(200, len(radius) // 3))),
+                "window_step": int(max(100, min(max(2 * int(round((1.0 / drive_freq_hz) / dt)), 600), max(200, len(radius) // 3)) // 2))
             },
             "eckmann": {"spectrum": np.asarray(spec_full, float)},
             "rosenstein": {"lle": float(lle_full)},
@@ -230,58 +254,75 @@ def find_best_params_grid(
 
     return best
 
-# ===================== RUNNER FOR C1/C2 =====================
-if __name__ == "__main__":
-    # User params
-    equation = 'G'      # 'RP', 'KM', 'G'
-    temperature = 20
+
+# ===================== RUNNER FOR C3 ONLY (TRIM TO 1061) =====================
+def main() -> None:
+    # ------- Fixed setup -------
+    equation = "G"         # 'RP', 'KM', 'G'
+    temperature = 20       # Celsius
     periods = 10
-    step = 1e-3         # this is the integrator's step control (your runner uses step/f)
+    step = 1e-3            # integrator step control used by your runner (step/f)
 
-    configs = [
-        ("C1", 0.3e6, 1.2e6, 10e-6),   # (name, P[Pa], f[Hz], R0[m])
-        ("C2", 1.5e6, 1.2e6, 5e-6)
-    ]
+    # ------- C3 only -------
+    configuration_name = "C3"
+    acoustic_pressure = 2.0e6   # Pa
+    frequency = 0.8e6           # Hz
+    initial_radius = 0.08e-6    # m
 
-    for configuration_name, acoustic_pressure, frequency, initial_radius in configs:
-        print(f"\n=== Running {configuration_name} ===")
+    print(f"\n=== Running {configuration_name} (trimmed to first 1061 points) ===")
 
-        # Build time array exactly like your previous runner
-        integration_time = np.arange(0, periods / frequency, step / frequency)
-        dt_series = float(np.median(np.diff(integration_time)))  # constant dt from the time grid
+    # Build time array exactly like your previous runner
+    integration_time = np.arange(0, periods / frequency, step / frequency)
 
-        trajectories, model = create_trajectories(
-            [equation],
-            temperature,
-            acoustic_pressure,
-            frequency,
-            initial_radius,
-            integration_time,
-            step
+    # Create trajectories
+    trajectories, _model = create_trajectories(
+        [equation],
+        temperature,
+        acoustic_pressure,
+        frequency,
+        initial_radius,
+        integration_time,
+        step
+    )
+
+    # ----- Trim to first 1061 samples to avoid post-explosion data -----
+    N_KEEP = 1061
+    n_total = len(integration_time)
+    if n_total < N_KEEP:
+        raise ValueError(f"Series has only {n_total} points (< {N_KEEP}). "
+                         f"Increase integration span or lower step to ensure at least {N_KEEP} samples.")
+
+    t_used = integration_time[:N_KEEP]
+    radius_full = trajectories[f"Radius_{equation}"]
+    radius_used = np.asarray(radius_full, float)[:N_KEEP]
+
+    # Recompute dt from the trimmed time vector
+    dt_series = float(np.median(np.diff(t_used)))
+
+    try:
+        best = find_best_params_grid(
+            radius=radius_used,
+            dt=dt_series,
+            drive_freq_hz=frequency,
+            emb_grid=EMB_GRID,
+            tau_grid_base=TAU_GRID_BASE,
+            theiler_mults=THEILER_MULTS,
+            traj_len_fracs=TRAJ_LEN_FRACS,
+            use_log_radius=USE_LOG_RADIUS
         )
 
-        radius_data = trajectories[f'Radius_{equation}']
+        lam1, lam2 = best["eckmann"]["spectrum"][:2]
+        lle = best["rosenstein"]["lle"]
+        chosen = best["params"]
 
-        try:
-            best = find_best_params_grid(
-                radius=radius_data,
-                dt=dt_series,
-                drive_freq_hz=frequency,
-                emb_grid=EMB_GRID,
-                tau_grid_base=TAU_GRID_BASE,
-                theiler_mults=THEILER_MULTS,
-                traj_len_fracs=TRAJ_LEN_FRACS,
-                use_log_radius=USE_LOG_RADIUS
-            )
+        print("Chosen params:", chosen)
+        print("Eckmann λ1, λ2 [1/s]:", lam1, " ", lam2)
+        print("Rosenstein LLE [1/s]:", lle)
 
-            lam1, lam2 = best["eckmann"]["spectrum"][:2]
-            lle = best["rosenstein"]["lle"]
-            chosen = best["params"]
+    except Exception as e:
+        print(f"[{configuration_name}] Parameter search failed: {e}")
+        print(f"  N={len(radius_used)}, dt={dt_series}, f={frequency} Hz")
 
-            print("Chosen params:", chosen)
-            print("Eckmann λ1, λ2 [1/s]:", lam1, " ", lam2)
-            print("Rosenstein LLE [1/s]:", lle)
 
-        except Exception as e:
-            print(f"[{configuration_name}] Parameter search failed: {e}")
-            print(f"  N={len(radius_data)}, dt={dt_series}, f={frequency} Hz")
+if __name__ == "__main__":
+    main()

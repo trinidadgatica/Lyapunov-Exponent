@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import norm, qr
 from algorithms.dynamics import create_trajectories
 
 equation_name_dd = dict()
@@ -24,8 +25,7 @@ def compute_lyapunov_exponents_from_trajectory(
     time: np.ndarray,
     model,
     equation_name: str,
-    keep: bool = False
-) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+    keep: bool = False) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Compute Lyapunov Exponents from trajectory data.
 
@@ -333,7 +333,7 @@ def compute_lyapunov_sum_from_determinants(
         return sum_LCE
 
 
-def compute_lyapunov_sum_from_determinants_fixed(
+def compute_lyapunov_sum_from_determinants_fixed_old(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,
@@ -411,7 +411,7 @@ def compute_lyapunov_sum_from_determinants_fixed(
     return (sum_LCE, history) if keep else sum_LCE
 
 
-def compute_lyapunov_from_eigenvalue_product_fixed(
+def compute_lyapunov_from_eigenvalue_product_fixed_old(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,
@@ -423,11 +423,8 @@ def compute_lyapunov_from_eigenvalue_product_fixed(
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Lyapunov exponents via eigenvalues of the cumulative flow map P = Π expm(J_i * dt),
-    using the analytic 2×2 eigenvalue formula (no scipy.eig/schur).
+    using the analytic 2×2 eigenvalue formula.
 
-    - Model agnostic: only uses your Jacobian functions.
-    - Stabilization is purely numerical (sub-steps, rescaling).
-    - Returns NaNs instead of raising if anything goes non-finite.
 
     Returns
     -------
@@ -436,8 +433,6 @@ def compute_lyapunov_from_eigenvalue_product_fixed(
     history : ndarray, shape (N, 2), optional
         Running estimates per step; only returned when keep=True.
     """
-    import numpy as np
-    from scipy.linalg import expm, norm
 
     # ---- basic checks / casting ----
     N = len(time)
@@ -581,3 +576,161 @@ def compute_lyapunov_from_eigenvalue_product_fixed(
             lyap_exponents = np.array([np.nan, np.nan], dtype=float)
 
     return (lyap_exponents, history) if keep else lyap_exponents
+
+
+def _phi_from_J(J: np.ndarray, dt: float) -> np.ndarray:
+    """Per-step flow propagator Phi ≈ exp(J*dt) """
+    A = J * dt
+
+    return np.eye(J.shape[0]) + A + 0.5 * (A @ A)
+
+
+def compute_lyapunov_from_eigenvalue_product_fixed(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    model,
+    equation_name: str,
+    keep: bool = False
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+    """
+    Lyapunov exponents via Eq. (6.18)-style eigenvalues of the product of per-step maps.
+
+    We are in continuous time with samples at t[i], so the correct per-step map is
+    Phi_i ≈ exp( J(t_i, x_i) * Δt_i ) (midpoint option below). We avoid overflow by
+    accumulating an equivalent upper-triangular factor T whose eigenvalues equal those
+    of the full product. Then λ_i = (1/T_total) * log |eigvals(T)|.
+
+    Returns
+    -------
+    LCE : (d,) ndarray of Lyapunov exponents
+    history : (N-1, d) running estimates (if keep=True)
+    """
+    radius = np.asarray(radius, dtype=float)
+    velocity = np.asarray(velocity, dtype=float)
+    time = np.asarray(time, dtype=float)
+
+    N = len(time)
+    assert len(radius) == N and len(velocity) == N, "All arrays must be the same length"
+    if N < 2:
+        raise ValueError("Need at least two samples")
+
+    d = 2  # (R, V)
+    # --- helper to get the Jacobian at (t, R, V)
+    if equation_name == 'Rayleigh-Plesset':
+        J_fn = lambda t, R, V: model.Jacobian_RP(R, V, t)
+    elif equation_name == 'Keller-Miksis':
+        J_fn = lambda t, R, V: model.Jacobian_KM(R, V, t)
+    elif equation_name == 'Gilmore':
+        J_fn = lambda t, R, V: model.Jacobian_G(R, V, t)
+    else:
+        raise ValueError("Wrong equation name")
+
+    # Accumulate via QR similarity: product = Q * T, eigenvalues(product) = eigenvalues(T)
+    Q = np.eye(d)
+    T = np.eye(d)
+
+    if keep:
+        history = np.zeros((N, d))
+
+    t0 = time[0]
+    dt = time[1] - time[0]  # assume constant step size
+
+    for i in range(N):
+        if dt <= 0:
+            raise ValueError("time must be strictly increasing")
+
+        # Midpoint evaluation improves accuracy for flows
+        #t_mid = time[i] + 0.5 * dt
+        #R_mid = 0.5 * (radius[i] + radius[i + 1])
+        #V_mid = 0.5 * (velocity[i] + velocity[i + 1])
+
+        J = np.asarray(J_fn(time[i], radius[i], velocity[i]), dtype=float)
+        if J.shape != (d, d):
+            raise ValueError(f"Jacobian must be {d}x{d}, got {J.shape}")
+
+        Phi = _phi_from_J(J, dt)
+
+        # Update: product <- Phi @ product  ; maintain as Q @ T with QR
+        Z = Phi @ Q
+        Q, R = np.linalg.qr(Z, mode="reduced")
+        T = R @ T  # still upper triangular; eigenvalues(product) = eig(T)
+
+        # Optional running estimate from current T
+        if keep:
+            # Eigenvalues of current product; normalize by elapsed time
+            evals = np.linalg.eigvals(T)
+            LCE_step = np.log(np.abs(evals)) / (dt * i)
+            history[i, 0] = LCE_step[0]
+            history[i, 1] = LCE_step[1]
+           
+
+    # Final exponents from T over total time
+    evals_final = np.linalg.eigvals(T)
+    LCE = np.log(np.abs(evals_final) + np.finfo(float).tiny) / (time[-1] - time[0])
+    LCE = np.sort(LCE)[::-1]  # λ1 ≥ λ2
+
+    if keep:
+        return LCE, history
+    else:
+        return LCE
+    
+def compute_lyapunov_sum_from_determinants_fixed(
+    radius: np.ndarray,
+    velocity: np.ndarray,
+    time: np.ndarray,
+    model,
+    equation_name: str,
+    keep: bool = False,
+) -> float | tuple[float, np.ndarray]:
+    """
+    Sum of LEs via one-step maps Φ_k formed from the continuous-time Jacobian J_c:
+        Φ_k ≈ exp( J_c(x(t_k)) Δt_k )  or  Φ_k ≈ I + Δt_k J_c(x(t_k))
+    Estimate:
+        sum_i λ_i ≈ (1 / T_total) * Σ_k log|det Φ_k|,   T_total = Σ_k Δt_k.
+    This mirrors the normalization in your QR/Eig implementations.
+
+    Returns a scalar (per unit time). If keep=True, returns a running time-normalized history (length N-1).
+    """
+    N = len(time)
+    assert len(radius) == N and len(velocity) == N, "All arrays must be the same length"
+    if N < 2:
+        raise ValueError("Need at least two samples")
+    
+    dt = float(time[1] - time[0])
+
+    # Running Kahan sum
+    total_logdet = 0.0
+    c = 0.0
+    elapsed = 0.0
+
+    hist = np.empty(N, float) if keep else None
+
+    for i in range(N):
+        if equation_name == 'Rayleigh-Plesset':
+            J = model.Jacobian_RP(radius[i], velocity[i], time[i])  # 2x2 Jacobian
+        elif equation_name == 'Keller-Miksis':
+            J = model.Jacobian_KM(radius[i], velocity[i], time[i])  # 2x2 Jacobian
+        elif equation_name == 'Gilmore':
+            J = model.Jacobian_G(radius[i], velocity[i], time[i])  # 2x2 Jacobian
+        else:
+            raise ValueError('Wrong equation name')
+
+        # step = dt * float(np.trace(J))
+        M = np.eye(J.shape[0]) + dt * J
+        sign, logdet = np.linalg.slogdet(M)     # ~ dt*tr(J) + O(dt^2)
+        step =  float(logdet) if sign != 0 else np.nan
+
+        # Kahan summation of the numerator Σ log|det Φ_k|
+        y = step - c
+        s = total_logdet + y
+        c = (s - total_logdet) - y
+        total_logdet = s
+
+        elapsed += dt
+
+        if keep:
+            hist[i] = total_logdet / elapsed  # per-unit-time running estimate
+
+    sum_lce = total_logdet / elapsed  # per-unit-time
+    return (sum_lce, hist) if keep else sum_lce

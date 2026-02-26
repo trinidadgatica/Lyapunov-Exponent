@@ -10,7 +10,7 @@ cases: list[dict] = [
 t0: float = 0.0
 t1: float = 50.0
 dt: float = 0.01
-transient_time: float = 10.0
+transient_time: float = 0.0 # 10.0
 observable: str = "x"
 
 # ======= nolds params (tuned to dt) =======
