@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from algorithms.method_comparison import (
+from experiments.method_comparison import (
     get_last_period_indices,
     run_lce_method_comparison,
     last1_summary_table,   

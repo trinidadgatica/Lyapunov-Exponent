@@ -2,13 +2,13 @@ import pandas as pd
 import numpy as np
 
 
-from algorithms.lyapunov import (
+from core.lyapunov import (
     compute_lyapunov_exponents_from_trajectory,
     compute_lyapunov_sum_from_determinants,
     compute_lyapunov_from_eigenvalue_product,
     equation_name_dd
 )
-from algorithms.dynamics import create_trajectories
+from models.bubble_models import create_trajectories
 
 
 configs: list[tuple[str, float, float, float]] = [

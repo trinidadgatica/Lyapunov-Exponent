@@ -3,14 +3,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-from algorithms.dynamics import create_trajectories
-from algorithms.lyapunov import (
+from models.bubble_models import create_trajectories
+from core.lyapunov import (
     compute_lyapunov_exponents_from_trajectory,
     compute_lyapunov_sum_from_determinants_fixed,
     compute_lyapunov_from_eigenvalue_product_fixed,
     equation_name_dd
 )
-from utils.plot_information import (
+from core.utils.plot_information import (
     PLOT_WIDTH, PLOT_HEIGHT,
     X_LABEL_FONT_SIZE, Y_LABEL_FONT_SIZE,
     X_TICK_FONT_SIZE, Y_TICK_FONT_SIZE,

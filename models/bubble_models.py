@@ -1,6 +1,6 @@
 import numpy as np
-from algorithms.experiment_maker import ExperimentMaker
-from algorithms.main import Model
+from experiments.experiment_maker import ExperimentMaker
+from core.main import Model
 
 # Physical constants
 ATMOSPHERIC_PRESSURE = 1e5

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.ticker import AutoMinorLocator
 
-from utils.plot_information import *
+from core.utils.plot_information import *
 
 
 def _build_custom_colormap(

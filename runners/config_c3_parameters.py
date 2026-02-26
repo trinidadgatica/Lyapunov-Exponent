@@ -7,9 +7,9 @@ using a robust grid search for Eckmann (spectrum) and Rosenstein (LLE).
 
 This script is self-contained: it defines the full grid-search + helpers here,
 and only relies on your existing simulation + LCE implementations:
-- algorithms.dynamics.create_trajectories
-- algorithms.lorenz_lyapunov.compute_lce_eckmann
-- algorithms.lorenz_lyapunov.compute_lce_rosenstein
+- models.bubble_models.create_trajectories
+- models.lorenz.compute_lce_eckmann
+- models.lorenz.compute_lce_rosenstein
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ from __future__ import annotations
 import numpy as np
 from typing import Dict, Any, Iterable, List, Tuple
 
-from algorithms.dynamics import create_trajectories
-from algorithms.lorenz_lyapunov import (
+from models.bubble_models import create_trajectories
+from models.lorenz import (
     compute_lce_eckmann,       # must accept (x, dt, params) and return spectrum per second
     compute_lce_rosenstein     # must accept (x, dt, params) and return lle per second
 )

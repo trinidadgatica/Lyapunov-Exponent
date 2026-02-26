@@ -1,7 +1,7 @@
 from itertools import product
 import numpy as np
 
-from algorithms.lyapunov import compute_lyapunov_grid
+from core.lyapunov import compute_lyapunov_grid
 
 # Fixed pressure (low)
 acoustic_pressure: float = 0.1e6  # Pa

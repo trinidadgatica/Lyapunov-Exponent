@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from scipy.integrate import ode
 
-from algorithms.main import Model
+from core.main import Model
 
 warnings.filterwarnings("ignore")
 

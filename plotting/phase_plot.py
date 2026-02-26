@@ -4,12 +4,12 @@ from tabulate import tabulate
 from matplotlib.colors import BoundaryNorm, Normalize
 from matplotlib import cm
 
-from algorithms.lyapunov import equation_name_dd, compute_lyapunov_exponents_from_trajectory
-from utils.plot_information import (
+from core.lyapunov import equation_name_dd, compute_lyapunov_exponents_from_trajectory
+from core.utils.plot_information import (
     X_TICK_FONT_SIZE, Y_TICK_FONT_SIZE, X_LABEL_FONT_SIZE, Y_LABEL_FONT_SIZE,
     PLOT_WIDTH, LEGEND_FONT_SIZE, primary_color, quaternary_color
 )
-from algorithms.dynamics import create_trajectories
+from models.bubble_models import create_trajectories
 
 
 def plot_one_case() -> None:

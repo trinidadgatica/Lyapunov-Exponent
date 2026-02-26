@@ -2,9 +2,9 @@ import time
 import numpy as np
 import pandas as pd
 
-from algorithms.dynamics import create_trajectories
-from algorithms import lyapunov as lya
-from algorithms.lorenz_lyapunov import compute_lce_eckmann, compute_lce_rosenstein
+from models.bubble_models import create_trajectories
+from core import lyapunov as lya
+from models.lorenz import compute_lce_eckmann, compute_lce_rosenstein
 
 # ================== USER PARAMS ==================
 equation: str = 'G'      # 'RP', 'KM', 'G'

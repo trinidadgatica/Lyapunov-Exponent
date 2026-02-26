@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from algorithms.dynamics import create_trajectories
+from models.bubble_models import create_trajectories
 from algorithms import lyapunov as lya
 
 # ================== FIXED / USER PARAMS (C3) ==================

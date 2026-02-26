@@ -1,7 +1,7 @@
 from itertools import product
 import numpy as np
 
-from algorithms.lyapunov import compute_lyapunov_grid
+from core.lyapunov import compute_lyapunov_grid
 
 # Fixed frequency
 frequency: float = 1e6  # Hz

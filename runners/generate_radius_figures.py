@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from algorithms.dynamics import create_trajectories
+from models.bubble_models import create_trajectories
 
 temperature: float = 20
 periods: int = 10

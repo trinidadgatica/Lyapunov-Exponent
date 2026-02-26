@@ -1,5 +1,19 @@
 import numpy as np
-from visualization.le_maps import plot_le_map
+from plotting.le_maps import plot_le_map
+from pathlib import Path
+
+
+def _require(path: str) -> Path:
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(
+            f"Missing required file: {p}\n"
+            f"Run the grid-generation scripts first:\n"
+            f"  python -m runners.run_fixed_frequency_scan\n"
+            f"  python -m runners.run_fixed_pressure_scan\n"
+        )
+    return p
+
 
 N: int = 50
 initial_radii: np.ndarray = np.linspace(1, 50, N)
@@ -7,9 +21,9 @@ acoustic_pressures: np.ndarray = np.linspace(0.2, 3, N)
 frequencies: np.ndarray = np.linspace(0.02, 2, N)
 
 # --- Load results for fixed frequency sweep ---
-res_RP_f = np.load("results/RP_fix_freq.npy", allow_pickle=True)
-res_KM_f = np.load("results/KM_fix_freq.npy", allow_pickle=True)
-res_G_f = np.load("results/G_fix_freq.npy", allow_pickle=True)
+res_RP_f = np.load(_require("results/RP_fix_freq.npy"), allow_pickle=True)
+res_KM_f = np.load(_require("results/KM_fix_freq.npy"), allow_pickle=True)
+res_G_f = np.load(_require("results/G_fix_freq.npy"), allow_pickle=True)
 
 # --- Plot LE maps (fixed frequency) ---
 for eq, data in zip(['RP', 'KM', 'G'], [res_RP_f, res_KM_f, res_G_f]): 

@@ -1,5 +1,5 @@
 import pandas as pd
-from algorithms.lorenz_lyapunov import benchmark_case
+from models.lorenz import benchmark_case
 
 cases: list[dict] = [
     dict(name="chaotic_16_45.92_4", sigma=16.0, rho=45.92, beta=4.0),

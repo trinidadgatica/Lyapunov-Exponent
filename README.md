@@ -45,7 +45,7 @@ pip install -r requirements.txt
 ```bash
 pip install -e .
 ```
-After this, imports like `from algorithms.lyapunov import compute_lyapunov_exponents_from_trajectory` work from anywhere inside the repo.
+After this, imports like `from core.lyapunov import compute_lyapunov_exponents_from_trajectory` work from anywhere inside the repo.
 
 ---
 

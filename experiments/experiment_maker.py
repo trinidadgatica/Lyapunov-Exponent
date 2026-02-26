@@ -4,8 +4,8 @@ from scipy.integrate import odeint, quad
 from scipy.signal import find_peaks
 from scipy.optimize import root
 
-from algorithms.main import Model
-from algorithms.ode_runner import Solver
+from core.main import Model
+from core.ode_runner import Solver
 
 warnings.filterwarnings("ignore")
 

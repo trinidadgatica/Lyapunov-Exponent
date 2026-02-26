@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
-from algorithms.dimensions import compute_lyapunov_dimensions
-from utils.plot_information import *
+from core.dimensions import compute_lyapunov_dimensions
+from core.utils.plot_information import *
 
 
 def create_d2_map_fixed_freq(

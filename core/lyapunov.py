@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.linalg import norm, qr
-from algorithms.dynamics import create_trajectories
+from models.bubble_models import create_trajectories
 
 equation_name_dd = dict()
 equation_name_dd['RP'] = 'Rayleigh-Plesset'
