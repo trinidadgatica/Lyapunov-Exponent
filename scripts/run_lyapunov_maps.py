@@ -1,5 +1,5 @@
 import numpy as np
-from plotting.le_maps import plot_le_map
+from plotting.lyapunov_maps import plot_le_map
 from pathlib import Path
 
 

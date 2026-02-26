@@ -1,4 +1,4 @@
-from plotting.phase_plot import plot_one_case, create_composite_figure
+from plotting.phase_portraits import plot_one_case, create_composite_figure
 
 if __name__ == "__main__":
     print("Generating single phase plot...")

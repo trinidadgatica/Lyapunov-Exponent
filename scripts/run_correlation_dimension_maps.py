@@ -1,5 +1,5 @@
 import numpy as np
-from plotting.d2_maps import create_d2_map_fixed_freq, create_d2_map_fixed_pa
+from plotting.correlation_dimension_maps import create_d2_map_fixed_freq, create_d2_map_fixed_pa
 from pathlib import Path
 
 def _require(path: str) -> Path:
