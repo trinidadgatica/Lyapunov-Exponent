@@ -36,18 +36,18 @@ for label, presure, frequency, initial_radius in configs:
     radius_data = trajectories[f'Radius_{equation}']
     velocity_data = trajectories[f'Velocity_{equation}']
 
-    # --- Call your Lyapunov algorithms ---
-    # 1) Eigenvalue product (keep history)
+
+    # 1) Eigenvalue product 
     eigvals, eig_hist = compute_lyapunov_from_eigenvalue_product(
         radius_data, velocity_data, time * frequency, model, equation_name_dd[equation], keep=True
     )
 
-    # 2) Determinant method (sum only; keep history)
+    # 2) Determinant method 
     sum_lce, det_hist = compute_lyapunov_sum_from_determinants(
         radius_data, velocity_data, time * frequency, model, equation_name_dd[equation], keep=True
     )
 
-    # 3) QR (baseline; keep history)
+    # 3) QR 
     lce_qr, qr_hist = compute_lyapunov_exponents_from_trajectory(
         radius_data, velocity_data, time * frequency, model, equation_name_dd[equation], keep=True
     )
@@ -60,7 +60,7 @@ for label, presure, frequency, initial_radius in configs:
     }
 
 
-invalid_threshold: float = 1e3   # adjust if your scale warrants a different bound
+invalid_threshold: float = 1e3  
 
 rows: list[dict] = []
 for (label, _, _, _) in configs:
