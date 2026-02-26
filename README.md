@@ -1,82 +1,192 @@
-# Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics
+# Lyapunov Exponent — Robust Numerical Estimation for Chaotic Bubble Dynamics
 
-> **Paper:** **Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics**  
-> **DOI:** _coming soon_
-
----
-
-## Abstract
-Bubble dynamics are highly nonlinear and can exhibit complex behaviors, including transitions to chaos. A standard approach for characterizing the dynamics is to calculate the Lyapunov exponents, which are a measure of sensitivity to initial conditions and identify the final states of the bubbles. The numerical methods available for calculating Lyapunov exponents often lack numerical stability when applied to intricate dynamical regimes of bubble oscillations, involving large oscillations. To address this limitation, we have developed a new algorithm that combines the Benettin method with QR orthonormalization and incorporates analytical Jacobians derived from the main bubble dynamics models; including the Rayleigh–Plesset, Keller–Miksis, and Gilmore equations. Benchmark comparisons against established numerical methods and validation with the Lorenz system demonstrate that our approach achieves stable and consistent results across a range of conditions and complex bubble dynamics, highlighting its reliability for the study of chaotic behavior in bubble dynamics.
+**Paper:** *Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics*  
+**DOI:** (to be added upon publication)
 
 ---
 
-## Installation (recommended: isolated `.venv`).
+## Overview
 
-### 1) Clone the repo
+This repository provides a robust numerical framework for computing Lyapunov exponents in nonlinear dynamical systems, with particular emphasis on acoustically driven bubble dynamics.
+
+The implementation combines:
+
+- Analytical Jacobians for:
+  - Rayleigh–Plesset
+  - Keller–Miksis
+  - Gilmore
+- Benettin QR re-orthonormalization
+- Stabilized classical alternatives (Eckmann, Rosenstein)
+- Validation against the Lorenz system
+
+The repository serves two purposes:
+
+1. A reusable numerical library for Lyapunov exponent estimation.
+2. A fully reproducible environment for all tables and figures in the paper.
+
+---
+
+## Repository Structure
+
+```
+core/          Lyapunov engine, QR propagation, Jacobians
+models/        Lorenz and bubble dynamical systems
+experiments/   Parameter sweeps and comparison logic
+plotting/      Phase portraits, Lyapunov maps, D2 maps
+scripts/       Internal utilities and grid generation
+configs/       Parameter configurations
+examples/      Paper reproduction scripts (Tables & Figures)
+results/       Generated numerical outputs (created automatically)
+figures/       Generated figures (created automatically)
+```
+
+---
+
+## Installation
+
+### 1) Clone the repository
+
 ```bash
-git clone https://github.com/<your-org>/Lyapunov-Exponent.git
+git clone https://github.com/<your-username>/Lyapunov-Exponent.git
 cd Lyapunov-Exponent
 ```
 
-### 2) Create & activate a virtual environment
+### 2) Create a virtual environment
 
 **Windows (PowerShell)**
-```powershell
-# from repo root
-python -m venv .venv
 
-# then activate
+```powershell
+python -m venv .venv
 . .\.venv\Scripts\Activate.ps1
 ```
 
 **macOS / Linux**
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
 ### 3) Install dependencies
+
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4) (Optional but recommended) Editable install for clean imports
+Optional (recommended for clean imports):
+
 ```bash
 pip install -e .
 ```
-After this, imports like `from core.lyapunov import compute_lyapunov_exponents_from_trajectory` work from anywhere inside the repo.
 
 ---
 
-## Configuration
+## Reproducing the Paper Results
 
-### Results directory
-By default, results are written to `results/`. You can override this via an environment variable:
+All published tables and figures can be reproduced via scripts in the `examples/` directory.
 
-**Windows (PowerShell):**
-```powershell
-$env:LYAP_RESULTS_DIR = "C:\\path\\to\\Lyapunov-Exponent\\results"
-```
+---
 
-**macOS / Linux:**
+### Tables
+
+**Table 1 — Lorenz benchmark**
 ```bash
-export LYAP_RESULTS_DIR="/absolute/path/to/Lyapunov-Exponent/results"
+python examples/reproduce_table_1_lorenz.py
 ```
 
-(If unset, the library falls back to `./results`. Make sure the folder exists or is creatable.)
+**Table 3 — Numerical comparison**
+```bash
+python examples/reproduce_table_3_numerical_comparison.py
+```
+
+**Table 4 — Reliability table**
+```bash
+python examples/reproduce_table_4_reliability.py
+```
+
+**Table 6 — Method comparison**
+```bash
+python examples/reproduce_table_6_method_comparison.py
+```
+
+**Table 7 — Configuration C3**
+```bash
+python examples/reproduce_table_7_config_c3.py
+```
 
 ---
 
-## Citing this work
-If you use this library or its results, please cite the paper:
+### Figures
 
-> **Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics**.  
-> **DOI:** _coming soon_
+**Figures 1–2 — Phase portraits**
+```bash
+python examples/reproduce_fig_1_2_phase_portraits.py
+```
 
-A BibTeX entry will be added here once the DOI is assigned.
+**Figure 3 — Lyapunov maps**
+
+If grid files do not yet exist, generate them first:
+
+```bash
+python scripts/run_fixed_frequency_scan.py
+python scripts/run_fixed_pressure_scan.py
+```
+
+Then generate the figure:
+
+```bash
+python examples/reproduce_fig_3_lyapunov_maps.py
+```
 
 ---
 
-## Acknowledgments
+## Output Files
 
+Generated outputs are saved under:
+
+```
+results/
+figures/
+```
+
+Grid files (`*.npy`) are reused automatically if already present.
+
+---
+
+## Using as a Library
+
+After installing with:
+
+```bash
+pip install -e .
+```
+
+You may import core components directly:
+
+```python
+from core.lyapunov import compute_lyapunov_exponents
+from models.lorenz import lorenz_system
+```
+
+This allows the framework to be used independently of the paper scripts.
+
+---
+
+## Citation
+
+If you use this code in academic work, please cite:
+
+> Robust numerical calculation of Lyapunov exponents for chaotic bubble dynamics  
+> DOI: (to be added)
+
+A BibTeX entry will be added once available.
+
+
+---
+
+## Maintainer
+
+Trinidad Gatica  
+Western University  
+Department of Statistical and Actuarial Sciences
