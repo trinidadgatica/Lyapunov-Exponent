@@ -23,11 +23,11 @@ def main() -> None:
     _ensure_dirs()
 
     # Compute grids first (needed for D2 map generation scripts as well)
-    _run("runners.run_fixed_frequency_scan")
-    _run("runners.run_fixed_pressure_scan")
+    _run("scripts.run_fixed_frequency_scan")
+    _run("scripts.run_fixed_pressure_scan")
 
     # Then generate D2 maps
-    _run("runners.run_correlation_dimension_maps")
+    _run("scripts.run_correlation_dimension_maps")
 
     print("\nDone: correlation dimension (D2) maps.")
 

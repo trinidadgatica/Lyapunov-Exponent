@@ -21,7 +21,7 @@ def _run(module: str) -> None:
 def main() -> None:
     os.environ.setdefault("PYTHONUTF8", "1")
     _ensure_dirs()
-    _run("runners.run_lorenz")
+    _run("scripts.run_lorenz")
     print("\nDone: Lorenz benchmark (Table 1-style output printed to console).")
 
 

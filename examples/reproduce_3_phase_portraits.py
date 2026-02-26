@@ -21,7 +21,7 @@ def _run(module: str) -> None:
 def main() -> None:
     os.environ.setdefault("PYTHONUTF8", "1")
     _ensure_dirs()
-    _run("runners.run_phase_portraits")
+    _run("scripts.run_phase_portraits")
     print("\nDone: phase portraits / composite figures generated.")
 
 

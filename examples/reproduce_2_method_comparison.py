@@ -21,7 +21,7 @@ def _run(module: str) -> None:
 def main() -> None:
     os.environ.setdefault("PYTHONUTF8", "1")
     _ensure_dirs()
-    _run("runners.run_method_comparison")
+    _run("scripts.run_method_comparison")
     print("\nDone: method comparison outputs saved under results/ (and/or figures/ depending on runner).")
 
 

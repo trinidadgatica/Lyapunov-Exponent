@@ -9,8 +9,8 @@ def _require(path: str) -> Path:
         raise FileNotFoundError(
             f"Missing required file: {p}\n"
             f"Run the grid-generation scripts first:\n"
-            f"  python -m runners.run_fixed_frequency_scan\n"
-            f"  python -m runners.run_fixed_pressure_scan\n"
+            f"  python -m scripts.run_fixed_frequency_scan\n"
+            f"  python -m scripts.run_fixed_pressure_scan\n"
         )
     return p
 

@@ -23,11 +23,11 @@ def main() -> None:
     _ensure_dirs()
 
     # 1) generate the grid data required by the plotting script
-    _run("runners.run_fixed_frequency_scan")
-    _run("runners.run_fixed_pressure_scan")
+    _run("scripts.run_fixed_frequency_scan")
+    _run("scripts.run_fixed_pressure_scan")
 
     # 2) plot LE maps from saved *.npy grids
-    _run("runners.run_lyapunov_maps")
+    _run("scripts.run_lyapunov_maps")
 
     print("\nDone: Lyapunov maps (computed grids + plotted figures).")
 
