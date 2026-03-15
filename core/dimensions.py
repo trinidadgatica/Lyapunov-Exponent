@@ -1,6 +1,6 @@
 import numpy as np
 
-def compute_lyapunov_dimensions(exponents: np.ndarray) -> dict:
+def compute_lce_dimension_metrics(exponents: np.ndarray) -> dict:
     """
     Compute Kaplan–Yorke and approximate correlation dimension D₂ from Lyapunov exponents.
 

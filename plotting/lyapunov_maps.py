@@ -6,7 +6,7 @@ from matplotlib.ticker import AutoMinorLocator
 from core.utils.plot_information import *
 
 
-def _build_custom_colormap(
+def _build_lyapunov_colormap(
     num_divs: int,
     linthresh: float,
     zmin: float,
@@ -28,7 +28,7 @@ def _build_custom_colormap(
     return cmap, norm, all_levels
 
 
-def plot_le_map(
+def plot_max_lce_map(
     x: np.ndarray,
     y: np.ndarray,
     max_exponents: np.ndarray,
@@ -44,7 +44,7 @@ def plot_le_map(
     zmin, zmax = np.min(Z), np.max(Z)
     linthresh = 1e-3
     num_divs = 4
-    cmap, norm, levels = _build_custom_colormap(num_divs, linthresh, zmin, zmax)
+    cmap, norm, levels = _build_lyapunov_colormap(num_divs, linthresh, zmin, zmax)
 
     factor = 1
     fig, ax = plt.subplots(figsize=(factor * PLOT_WIDTH, factor * (PLOT_WIDTH - 1.5)))

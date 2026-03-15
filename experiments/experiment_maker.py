@@ -4,14 +4,14 @@ from scipy.integrate import odeint, quad
 from scipy.signal import find_peaks
 from scipy.optimize import root
 
-from core.main import Model
-from core.ode_runner import Solver
+from core.main import BubbleModelBase
+from core.ode_runner import BubbleOdeSolver
 
 warnings.filterwarnings("ignore")
 
 
-class ExperimentMaker(Model):
-    def __int__(self, model_instance: Model):
+class BubbleExperimentFactory(BubbleModelBase):
+    def __int__(self, model_instance: BubbleModelBase):
         super().__init__(model_instance.pa, model_instance.f, model_instance.r0,
                          model_instance.j0, model_instance.p0, model_instance.sigma,
                          model_instance.rho, model_instance.mu, model_instance.c,
@@ -34,7 +34,7 @@ class ExperimentMaker(Model):
             result_rayleigh_plesset = odeint(self.rayleigh_plesset_equation, [1, 0], time, tfirst=True,
                                              atol=1e-16)
         elif solver == "ODE":
-            result_rayleigh_plesset = Solver.runner_ode_rp(self, time, step)
+            result_rayleigh_plesset = BubbleOdeSolver.runner_ode_rp(self, time, step)
 
         else:
             raise ValueError("Invalid equation")
@@ -91,7 +91,7 @@ class ExperimentMaker(Model):
         if solver == "ODEINT":
             result_keller_miksis = odeint(self.keller_miksis_equation, [1, 0], time, tfirst=True, atol=1e-16)
         elif solver == "ODE":
-            result_keller_miksis = Solver.runner_ode_km(self, time, step)
+            result_keller_miksis = BubbleOdeSolver.runner_ode_km(self, time, step)
         else:
             raise ValueError("Invalid equation")
 
@@ -165,7 +165,7 @@ class ExperimentMaker(Model):
         if solver == "ODEINT":
             result_gilmore = odeint(self.gilmore_equation, [1, 0], time, tfirst=True, atol=1e-16)
         elif solver == "ODE":
-            result_gilmore = Solver.runner_ode_g(self, time, step)
+            result_gilmore = BubbleOdeSolver.runner_ode_g(self, time, step)
         else:
             raise ValueError("Invalid equation")
 

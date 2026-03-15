@@ -1,13 +1,13 @@
 import numpy as np
-from experiments.experiment_maker import ExperimentMaker
-from core.main import Model
+from experiments.experiment_maker import BubbleExperimentFactory
+from core.main import BubbleModelBase
 
 # Physical constants
 ATMOSPHERIC_PRESSURE = 1e5
 ADIABATIC_INDEX = 1.33
 VAPOR_PRESSURE = 3.2718e3
 
-def create_trajectories(
+def simulate_bubble_trajectories(
     equation_list: list,
     temperature: float,
     acoustic_pressure: float,
@@ -15,7 +15,7 @@ def create_trajectories(
     initial_radius: float,
     times: np.ndarray,
     step: float
-) -> tuple[dict, ExperimentMaker]:
+) -> tuple[dict, BubbleExperimentFactory]:
     """
     Generates bubble dynamics trajectories using selected models.
 
@@ -34,12 +34,12 @@ def create_trajectories(
     initial_velocity = 0
 
     # Temperature-dependent fluid properties
-    sound_velocity = Model.sound_velocity_generator_temperature(temperature)
-    surface_tension = Model.surface_tension_generator_temperature(temperature)
-    density = Model.density_generator_temperature(temperature)
-    viscosity = Model.viscosity_generator_temperature(temperature)
+    sound_velocity = BubbleModelBase.sound_velocity_generator_temperature(temperature)
+    surface_tension = BubbleModelBase.surface_tension_generator_temperature(temperature)
+    density = BubbleModelBase.density_generator_temperature(temperature)
+    viscosity = BubbleModelBase.viscosity_generator_temperature(temperature)
 
-    model = ExperimentMaker(
+    model = BubbleExperimentFactory(
         acoustic_pressure,
         frequency,
         initial_radius,

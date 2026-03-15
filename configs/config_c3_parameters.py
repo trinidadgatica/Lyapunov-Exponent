@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Dict, Any, Iterable, List, Tuple
 
-from models.bubble_models import create_trajectories
+from models.bubble_models import simulate_bubble_trajectories
 from models.lorenz import (
     compute_lce_eckmann,       # must accept (x, dt, params) and return spectrum per second
     compute_lce_rosenstein     # must accept (x, dt, params) and return lle per second
@@ -275,7 +275,7 @@ def main() -> None:
     integration_time = np.arange(0, periods / frequency, step / frequency)
 
     # Create trajectories
-    trajectories, _model = create_trajectories(
+    trajectories, _model = simulate_bubble_trajectories(
         [equation],
         temperature,
         acoustic_pressure,

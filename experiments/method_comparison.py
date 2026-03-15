@@ -3,12 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-from models.bubble_models import create_trajectories
+from models.bubble_models import simulate_bubble_trajectories
 from core.lyapunov import (
-    compute_lyapunov_exponents_from_trajectory,
-    compute_lyapunov_sum_from_determinants_fixed,
-    compute_lyapunov_from_eigenvalue_product_fixed,
-    equation_name_dd
+    compute_lce_qr_from_trajectory,
+    compute_lce_sum_from_determinants_trajectory,
+    compute_lce_from_eigenvalue_product_trajectory,
+    EQUATION_DISPLAY_NAMES
 )
 from core.utils.plot_information import (
     PLOT_WIDTH, PLOT_HEIGHT,
@@ -19,7 +19,7 @@ from core.utils.plot_information import (
 
 
 
-def run_lce_method_comparison(
+def run_method_comparison_experiment(
     equation: str,
     temperature: float,
     pressure: float,
@@ -28,20 +28,20 @@ def run_lce_method_comparison(
     times: np.ndarray,
     step: float
 ) -> tuple:
-    trajectories, model = create_trajectories([equation], temperature, pressure, frequency, radius, times, step)
+    trajectories, model = simulate_bubble_trajectories([equation], temperature, pressure, frequency, radius, times, step)
 
     radius_data = trajectories[f'Radius_{equation}']
     velocity_data = trajectories[f'Velocity_{equation}']
     scaled_time = times * frequency
 
-    lce_qr, hist_qr = compute_lyapunov_exponents_from_trajectory(radius_data, velocity_data, scaled_time, model, equation_name_dd[equation], keep=True)
-    lce_eig, hist_eig = compute_lyapunov_from_eigenvalue_product_fixed(radius_data, velocity_data, scaled_time, model, equation_name_dd[equation], keep=True)
-    lce_det, hist_det = compute_lyapunov_sum_from_determinants_fixed(radius_data, velocity_data, scaled_time, model, equation_name_dd[equation], keep=True)
+    lce_qr, hist_qr = compute_lce_qr_from_trajectory(radius_data, velocity_data, scaled_time, model, EQUATION_DISPLAY_NAMES[equation], keep=True)
+    lce_eig, hist_eig = compute_lce_from_eigenvalue_product_trajectory(radius_data, velocity_data, scaled_time, model, EQUATION_DISPLAY_NAMES[equation], keep=True)
+    lce_det, hist_det = compute_lce_sum_from_determinants_trajectory(radius_data, velocity_data, scaled_time, model, EQUATION_DISPLAY_NAMES[equation], keep=True)
 
     return lce_qr, lce_eig, lce_det, hist_qr, hist_eig, hist_det
 
 
-def get_last_period_indices(
+def get_final_period_indices(
     times: np.ndarray,
     frequency: float,
     periods: int,
@@ -81,7 +81,7 @@ def get_last_period_indices(
     return np.where(mask)[0]
 
 
-def period_stats(history: np.ndarray) -> dict:
+def summarize_time_series(history: np.ndarray) -> dict:
     """
     Calculate min, max, and mean for a NumPy array time series.
     """
@@ -92,65 +92,65 @@ def period_stats(history: np.ndarray) -> dict:
     }
 
 
-def _finite(x):
+def _filter_finite_values(x):
     x = np.asarray(x).ravel()
     return x[np.isfinite(x)]
 
-def _quantiles(x):
-    x = _finite(x)
+def _compute_quantiles(x):
+    x = _filter_finite_values(x)
     try:
         q05, q25, q50, q75, q95 = np.nanquantile(x, [0.05, 0.25, 0.50, 0.75, 0.95], method="linear")
     except TypeError:  # NumPy < 1.23
         q05, q25, q50, q75, q95 = np.nanquantile(x, [0.05, 0.25, 0.50, 0.75, 0.95], interpolation="linear")
     return float(q05), float(q25), float(q50), float(q75), float(q95)
 
-def _mad(x):
-    x = _finite(x)
+def _compute_mad(x):
+    x = _filter_finite_values(x)
     m = np.nanmedian(x)
     return float(np.nanmedian(np.abs(x - m)))
 
-def _scale_iqr_or_mad(x):
-    q05, q25, q50, q75, q95 = _quantiles(x)
+def _compute_robust_scale(x):
+    q05, q25, q50, q75, q95 = _compute_quantiles(x)
     iqr = q75 - q25
     if np.isfinite(iqr) and iqr > 0:
         return iqr
-    s = 1.4826 * _mad(x)
+    s = 1.4826 * _compute_mad(x)
     return s if (np.isfinite(s) and s > 0) else np.nan
 
-def r_med_over_IQR(x, lam_star):
-    x = _finite(x)
+def median_error_over_iqr(x, lam_star):
+    x = _filter_finite_values(x)
     if x.size == 0 or not np.isfinite(lam_star): return np.nan
-    scale = _scale_iqr_or_mad(x)
+    scale = _compute_robust_scale(x)
     if not np.isfinite(scale) or scale == 0:     return np.nan
     return float(np.nanmedian(np.abs(x - lam_star)) / scale)
 
-def W1_over_IQR(x, lam_star):
-    x = _finite(x)
+def wasserstein_over_iqr(x, lam_star):
+    x = _filter_finite_values(x)
     if x.size == 0 or not np.isfinite(lam_star): return np.nan
-    scale = _scale_iqr_or_mad(x)
+    scale = _compute_robust_scale(x)
     if not np.isfinite(scale) or scale == 0:     return np.nan
     return float(np.nanmean(np.abs(x - lam_star)) / scale)
 
 
-def last1_summary_table(last1: dict[str, np.ndarray], finals: dict[str, float],
+def last_period_summary_table(last_period_sample: dict[str, np.ndarray], final_values: dict[str, float],
                         order: list[str] | None = None, decimals: int = 3) -> pd.DataFrame:
     """
-    last1:  {name -> 1D array (last 1 period samples)}
+    last_period_sample:  {name -> 1D array of samples from the last period}
     finals: {name -> scalar final λ*}
     order:  optional fixed row order
     """
     rows = []
-    names = order or list(last1.keys())
+    names = order or list(last_period_sample.keys())
     for name in names:
-        x = last1.get(name, None)
+        x = last_period_sample.get(name, None)
         if x is None: continue
-        x = _finite(x)
+        x = _filter_finite_values(x)
         if x.size == 0: continue
-        lam = float(finals[name])
+        lam = float(final_values[name])
 
-        q05, q25, q50, q75, q95 = _quantiles(x)
-        rmed = r_med_over_IQR(x, lam)
-        w1   = W1_over_IQR(x, lam)
+        q05, q25, q50, q75, q95 = _compute_quantiles(x)
+        rmed = median_error_over_iqr(x, lam)
+        w1   = wasserstein_over_iqr(x, lam)
 
         rows.append({
             "Method": name,

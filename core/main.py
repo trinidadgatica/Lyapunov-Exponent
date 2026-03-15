@@ -4,7 +4,7 @@ import numpy as np
 warnings.filterwarnings("ignore")
 
 
-class Model:
+class BubbleModelBase:
     def __init__(
         self,
         pa: float,

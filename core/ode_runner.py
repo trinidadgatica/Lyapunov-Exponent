@@ -2,12 +2,12 @@ import warnings
 import numpy as np
 from scipy.integrate import ode
 
-from core.main import Model
+from core.main import BubbleModelBase
 
 warnings.filterwarnings("ignore")
 
 
-class Solver(Model):
+class BubbleOdeSolver(BubbleModelBase):
     def runner_ode_rp(self, t: np.ndarray, tstep: float) -> np.ndarray:
         tau = t
         dtau = tstep

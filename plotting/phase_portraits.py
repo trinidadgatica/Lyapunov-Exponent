@@ -4,15 +4,15 @@ from tabulate import tabulate
 from matplotlib.colors import BoundaryNorm, Normalize
 from matplotlib import cm
 
-from core.lyapunov import equation_name_dd, compute_lyapunov_exponents_from_trajectory
+from core.lyapunov import EQUATION_DISPLAY_NAMES, compute_lce_qr_from_trajectory
 from core.utils.plot_information import (
     X_TICK_FONT_SIZE, Y_TICK_FONT_SIZE, X_LABEL_FONT_SIZE, Y_LABEL_FONT_SIZE,
     PLOT_WIDTH, LEGEND_FONT_SIZE, primary_color, quaternary_color
 )
-from models.bubble_models import create_trajectories
+from models.bubble_models import simulate_bubble_trajectories
 
 
-def plot_one_case() -> None:
+def plot_stable_rp_phase_portrait() -> None:
     temperature = 20
     periods = 10
     equation = "RP"
@@ -24,7 +24,7 @@ def plot_one_case() -> None:
     times = np.arange(0, periods / frequency, step)
     time = times * frequency  # cycles
 
-    trajectories, general_model = create_trajectories(
+    trajectories, general_model = simulate_bubble_trajectories(
         [equation], temperature, acoustic_pressure,
         frequency, initial_radius, times, step
     )
@@ -85,10 +85,10 @@ def plot_one_case() -> None:
     cbar.ax.tick_params(labelsize=LEGEND_FONT_SIZE)
 
     fig.tight_layout()
-    plt.savefig("results/stable_RP.pdf", format='pdf', bbox_inches='tight')
+    plt.savefig("figures/stable_RP.pdf", format='pdf', bbox_inches='tight')
     plt.show()
 
-def create_composite_figure() -> None:
+def create_phase_portrait_composite_figure() -> None:
     regimes = ["stable", "transient", "collapse"]
     equations = ["RP", "KM", "G"]
     temperature = 20
@@ -121,7 +121,7 @@ def create_composite_figure() -> None:
             times = np.arange(0, periods / frequency, step)
             time = 2 * np.pi * times * frequency if eq == "G" else times * frequency
 
-            trajectories, general_model = create_trajectories(
+            trajectories, general_model = simulate_bubble_trajectories(
                 [eq], temperature, params["acoustic_pressure"],
                 frequency, params["initial_radius"], times, step
             )
@@ -133,11 +133,11 @@ def create_composite_figure() -> None:
                 general_model.sound_velocity
             )
 
-            LCE_vals = compute_lyapunov_exponents_from_trajectory(
-                radius, velocity, time, general_model, equation_name_dd[eq], keep=False
+            LCE_vals = compute_lce_qr_from_trajectory(
+                radius, velocity, time, general_model, EQUATION_DISPLAY_NAMES[eq], keep=False
             )
             lyap_table_data.append([
-                equation_name_dd[eq],
+                EQUATION_DISPLAY_NAMES[eq],
                 regime.capitalize(),
                 f"{LCE_vals[0]:.2e}",
                 f"{LCE_vals[1]:.2e}"
@@ -152,7 +152,7 @@ def create_composite_figure() -> None:
 
             # Top titles for each column
             if row == 0:
-                ax.set_title(f"{equation_name_dd[eq]}", fontsize=X_LABEL_FONT_SIZE + 2)
+                ax.set_title(f"{EQUATION_DISPLAY_NAMES[eq]}", fontsize=X_LABEL_FONT_SIZE + 2)
 
             # Set "C1", "C2", "C3" as y-axis labels for first column
             if col == 0:
@@ -174,7 +174,7 @@ def create_composite_figure() -> None:
     cbar.ax.tick_params(labelsize=X_TICK_FONT_SIZE)
 
     plt.tight_layout(rect=[0, 0, 0.91, 1])
-    plt.savefig("results/composite_phase_3x3.pdf")
+    plt.savefig("figures/composite_phase_3x3.pdf")
     plt.show()
 
     print("\nLyapunov Exponents Table:")

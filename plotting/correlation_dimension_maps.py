@@ -1,11 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
-from core.dimensions import compute_lyapunov_dimensions
+from core.dimensions import compute_lce_dimension_metrics
 from core.utils.plot_information import *
 
 
-def create_d2_map_fixed_freq(
+def plot_d2_map_fixed_frequency(
     initial_radii: np.ndarray,
     pressures: np.ndarray,
     grid_size: int,
@@ -19,7 +19,7 @@ def create_d2_map_fixed_freq(
     y = np.linspace(pressures.min(), pressures.max(), grid_size)
     X, Y = np.meshgrid(x, y)
 
-    d2_vals = [compute_lyapunov_dimensions(r)["Correlation D₂ (approx)"] for r in results]
+    d2_vals = [compute_lce_dimension_metrics(r)["Correlation D₂ (approx)"] for r in results]
     Z = np.clip(np.nan_to_num(d2_vals, nan=2.5), 0, 2.5).reshape(X.shape, order='F')
 
     levels = np.linspace(0, 2.5, 300)
@@ -43,7 +43,7 @@ def create_d2_map_fixed_freq(
     plt.show()
 
 
-def create_d2_map_fixed_pa(
+def plot_d2_map_fixed_pressure(
     initial_radii: np.ndarray,
     freqs: np.ndarray,
     grid_size: int,
@@ -58,7 +58,7 @@ def create_d2_map_fixed_pa(
     y = np.linspace(freqs.min(), freqs.max(), grid_size)
     X, Y = np.meshgrid(x, y)
 
-    d2_vals = [compute_lyapunov_dimensions(r)["Correlation D₂ (approx)"] for r in results]
+    d2_vals = [compute_lce_dimension_metrics(r)["Correlation D₂ (approx)"] for r in results]
     Z = np.clip(np.nan_to_num(d2_vals, nan=2.5), 0, 2.5).reshape(X.shape, order='F')
 
     levels = np.linspace(0, 2.5, 300)
