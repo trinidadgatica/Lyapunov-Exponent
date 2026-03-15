@@ -1,8 +1,7 @@
 import warnings
+
 import numpy as np
-from scipy.integrate import odeint, quad
-from scipy.signal import find_peaks
-from scipy.optimize import root
+from scipy.integrate import odeint
 
 from core.main import BubbleModelBase
 from core.ode_runner import BubbleOdeSolver

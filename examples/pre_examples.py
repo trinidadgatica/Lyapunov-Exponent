@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -54,6 +53,10 @@ def main() -> None:
     n_points: int = 5
     temperature: float = 20.0  # °C
 
+    # Optimization controls
+    skip_existing: bool = False
+    max_workers: int | None = 3
+
     # Fixed-frequency scan settings
     fixed_frequency: float = 1e6  # Hz
     initial_radius_min_freq: float = 1.0
@@ -66,7 +69,13 @@ def main() -> None:
     initial_radius_min_pa: float = 1.0
     initial_radius_max_pa: float = 50.0
     frequency_min: float = 0.02  # MHz
-    frequency_max: float = 2.0   # MHz
+    frequency_max: float = 2.0  # MHz
+
+    logger.info(
+        "Optimization settings: skip_existing=%s, max_workers=%s",
+        skip_existing,
+        max_workers,
+    )
 
     logger.info("Running fixed-frequency generation.")
     generate_fixed_frequency_scans(
@@ -78,6 +87,8 @@ def main() -> None:
         acoustic_pressure_min=acoustic_pressure_min,
         acoustic_pressure_max=acoustic_pressure_max,
         results_dir="results",
+        skip_existing=skip_existing,
+        max_workers=max_workers,
     )
 
     logger.info("Running fixed-pressure generation.")
@@ -90,6 +101,8 @@ def main() -> None:
         frequency_min=frequency_min,
         frequency_max=frequency_max,
         results_dir="results",
+        skip_existing=skip_existing,
+        max_workers=max_workers,
     )
 
     validate_outputs()

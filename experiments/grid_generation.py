@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import product
 from pathlib import Path
 
@@ -9,6 +10,38 @@ from core.lyapunov import compute_lce_grid
 from utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
+
+def _compute_and_save_grid(
+    *,
+    equation: str,
+    grid: list[tuple[float, float]],
+    temperature: float,
+    frequency: float | None,
+    pressure: float | None,
+    filename_suffix: str,
+    output_path: str | Path,
+) -> str:
+    """
+    Worker function for one equation.
+    Runs the Lyapunov grid computation and saves the result.
+    """
+    output_path = Path(output_path)
+
+    results = compute_lce_grid(
+        grid=grid,
+        equation=equation,
+        temperature=temperature,
+        frequency=frequency,
+        pressure=pressure,
+        filename_suffix=filename_suffix,
+    )
+
+    np.save(output_path, results, allow_pickle=True)
+
+    if not output_path.exists():
+        raise FileNotFoundError(f"Missing output file after save: {output_path}")
+
+    return str(output_path)
 
 
 def generate_fixed_frequency_scans(
@@ -21,28 +54,16 @@ def generate_fixed_frequency_scans(
     acoustic_pressure_min: float,
     acoustic_pressure_max: float,
     results_dir: str | Path = "results",
+    skip_existing: bool = True,
+    max_workers: int | None = None,
 ) -> None:
     """
     Generate Lyapunov grids for the fixed-frequency experiment.
 
-    Parameters
-    ----------
-    frequency : float
-        Fixed driving frequency in Hz.
-    temperature : float
-        Temperature in degrees Celsius.
-    n_points : int
-        Number of grid points per axis.
-    initial_radius_min : float
-        Minimum initial radius.
-    initial_radius_max : float
-        Maximum initial radius.
-    acoustic_pressure_min : float
-        Minimum acoustic pressure in MPa.
-    acoustic_pressure_max : float
-        Maximum acoustic pressure in MPa.
-    results_dir : str | Path, optional
-        Output directory for saved .npy files.
+    Saves:
+        RP_fix_freq.npy
+        KM_fix_freq.npy
+        G_fix_freq.npy
     """
     logger.info("Starting fixed-frequency scan.")
 
@@ -70,32 +91,50 @@ def generate_fixed_frequency_scans(
     grid: list[tuple[float, float]] = list(product(initial_radii, acoustic_pressures))
     logger.info("Constructed fixed-frequency grid with %d points.", len(grid))
 
-    for idx, eq in enumerate(["RP", "KM", "G"], start=1):
-        output_path = results_path / f"{eq}_fix_freq.npy"
-        logger.info("[%d/3] %s: starting grid computation.", idx, eq)
+    jobs: list[dict] = []
+    for equation in ["RP", "KM", "G"]:
+        output_path = results_path / f"{equation}_fix_freq.npy"
 
-        try:
-            results = compute_lce_grid(
-                grid=grid,
-                equation=eq,
-                temperature=temperature,
-                frequency=frequency,
-                pressure=None,
-                filename_suffix="_fix_freq",
-            )
+        if skip_existing and output_path.exists():
+            logger.info("%s: output already exists, skipping %s", equation, output_path)
+            continue
 
-            logger.info("%s: computation finished, saving to %s", eq, output_path)
-            np.save(output_path, results, allow_pickle=True)
+        jobs.append(
+            {
+                "equation": equation,
+                "grid": grid,
+                "temperature": temperature,
+                "frequency": frequency,
+                "pressure": None,
+                "filename_suffix": "_fix_freq",
+                "output_path": output_path,
+            }
+        )
 
-            if not output_path.exists():
-                logger.error("%s: expected output file was not created.", eq)
-                raise FileNotFoundError(f"Missing output file: {output_path}")
+    if not jobs:
+        logger.info("All fixed-frequency outputs already exist. Nothing to do.")
+        return
 
-            logger.info("[%d/3] %s: finished successfully.", idx, eq)
+    logger.info(
+        "Running %d fixed-frequency equation job(s) with max_workers=%s",
+        len(jobs),
+        max_workers,
+    )
 
-        except Exception:
-            logger.exception("%s: fixed-frequency scan failed.", eq)
-            raise
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_compute_and_save_grid, **job): job["equation"]
+            for job in jobs
+        }
+
+        for future in as_completed(futures):
+            equation = futures[future]
+            try:
+                saved_path = future.result()
+                logger.info("%s: fixed-frequency scan finished successfully: %s", equation, saved_path)
+            except Exception:
+                logger.exception("%s: fixed-frequency scan failed.", equation)
+                raise
 
     logger.info("Finished fixed-frequency scan.")
 
@@ -110,28 +149,16 @@ def generate_fixed_pressure_scans(
     frequency_min: float,
     frequency_max: float,
     results_dir: str | Path = "results",
+    skip_existing: bool = True,
+    max_workers: int | None = None,
 ) -> None:
     """
     Generate Lyapunov grids for the fixed-pressure experiment.
 
-    Parameters
-    ----------
-    acoustic_pressure : float
-        Fixed acoustic pressure in Pa.
-    temperature : float
-        Temperature in degrees Celsius.
-    n_points : int
-        Number of grid points per axis.
-    initial_radius_min : float
-        Minimum initial radius.
-    initial_radius_max : float
-        Maximum initial radius.
-    frequency_min : float
-        Minimum frequency in MHz.
-    frequency_max : float
-        Maximum frequency in MHz.
-    results_dir : str | Path, optional
-        Output directory for saved .npy files.
+    Saves:
+        RP_fix_pa.npy
+        KM_fix_pa.npy
+        G_fix_pa.npy
     """
     logger.info("Starting fixed-pressure scan (_fix_pa).")
 
@@ -159,31 +186,49 @@ def generate_fixed_pressure_scans(
     grid: list[tuple[float, float]] = list(product(initial_radii, frequencies))
     logger.info("Constructed fixed-pressure grid with %d points.", len(grid))
 
-    for idx, eq in enumerate(["RP", "KM", "G"], start=1):
-        output_path = results_path / f"{eq}_fix_pa.npy"
-        logger.info("[%d/3] %s: starting grid computation.", idx, eq)
+    jobs: list[dict] = []
+    for equation in ["RP", "KM", "G"]:
+        output_path = results_path / f"{equation}_fix_pa.npy"
 
-        try:
-            results = compute_lce_grid(
-                grid=grid,
-                equation=eq,
-                temperature=temperature,
-                pressure=acoustic_pressure,
-                frequency=None,
-                filename_suffix="_fix_pa",
-            )
+        if skip_existing and output_path.exists():
+            logger.info("%s: output already exists, skipping %s", equation, output_path)
+            continue
 
-            logger.info("%s: computation finished, saving to %s", eq, output_path)
-            np.save(output_path, results, allow_pickle=True)
+        jobs.append(
+            {
+                "equation": equation,
+                "grid": grid,
+                "temperature": temperature,
+                "frequency": None,
+                "pressure": acoustic_pressure,
+                "filename_suffix": "_fix_pa",
+                "output_path": output_path,
+            }
+        )
 
-            if not output_path.exists():
-                logger.error("%s: expected output file was not created.", eq)
-                raise FileNotFoundError(f"Missing output file: {output_path}")
+    if not jobs:
+        logger.info("All fixed-pressure outputs already exist. Nothing to do.")
+        return
 
-            logger.info("[%d/3] %s: finished successfully.", idx, eq)
+    logger.info(
+        "Running %d fixed-pressure equation job(s) with max_workers=%s",
+        len(jobs),
+        max_workers,
+    )
 
-        except Exception:
-            logger.exception("%s: fixed-pressure scan failed.", eq)
-            raise
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_compute_and_save_grid, **job): job["equation"]
+            for job in jobs
+        }
+
+        for future in as_completed(futures):
+            equation = futures[future]
+            try:
+                saved_path = future.result()
+                logger.info("%s: fixed-pressure scan finished successfully: %s", equation, saved_path)
+            except Exception:
+                logger.exception("%s: fixed-pressure scan failed.", equation)
+                raise
 
     logger.info("Finished fixed-pressure scan (_fix_pa).")

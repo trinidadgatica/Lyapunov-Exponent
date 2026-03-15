@@ -53,7 +53,7 @@ def main() -> None:
                 initial_radius,
             )
 
-            time = np.arange(0, periods / frequency, step / frequency)
+            time_grid = np.arange(0, periods / frequency, step / frequency)
 
             trajectories, model = simulate_bubble_trajectories(
                 [equation],
@@ -61,7 +61,7 @@ def main() -> None:
                 pressure,
                 frequency,
                 initial_radius,
-                time,
+                time_grid,
                 step,
             )
 
@@ -69,20 +69,20 @@ def main() -> None:
             velocity_data = trajectories[f"Velocity_{equation}"]
 
             logger.info("%s: running eigenvalue-product method.", label)
-            eigvals, eig_hist = compute_lce_from_eigenvalue_product(
+            eigenvalue_product_lce, historical_eigenvalues = compute_lce_from_eigenvalue_product(
                 radius_data,
                 velocity_data,
-                time * frequency,
+                time_grid * frequency,
                 model,
                 EQUATION_DISPLAY_NAMES[equation],
                 keep=True,
             )
 
             logger.info("%s: running determinant method.", label)
-            sum_lce, det_hist = compute_lce_sum_from_determinants(
+            determinant_sum_lce, historical_determinant = compute_lce_sum_from_determinants(
                 radius_data,
                 velocity_data,
-                time * frequency,
+                time_grid * frequency,
                 model,
                 EQUATION_DISPLAY_NAMES[equation],
                 keep=True,
@@ -92,35 +92,35 @@ def main() -> None:
             lce_qr, qr_hist = compute_lce_qr_from_trajectory(
                 radius_data,
                 velocity_data,
-                time * frequency,
+                time_grid * frequency,
                 model,
                 EQUATION_DISPLAY_NAMES[equation],
                 keep=True,
             )
 
             results[label] = {
-                "eig_product": {"final": eigvals, "history": eig_hist},
-                "determinant": {"final": sum_lce, "history": det_hist},
+                "eig_product": {"final": eigenvalue_product_lce, "history": historical_eigenvalues},
+                "determinant": {"final": determinant_sum_lce, "history": historical_determinant},
                 "qr": {"final": lce_qr, "history": qr_hist},
             }
             logger.info("%s: finished successfully.", label)
 
         invalid_threshold: float = 1e3
-        rows: list[dict] = []
+        table_rows: list[dict] = []
 
         for label, _, _, _ in configs:
-            eig_hist = results[label]["eig_product"]["history"]
-            det_hist = results[label]["determinant"]["history"]
+            historical_eigenvalues = results[label]["eig_product"]["history"]
+            historical_determinant = results[label]["determinant"]["history"]
             qr_hist = results[label]["qr"]["history"]
 
             invalid_eig = (
-                np.any(~np.isfinite(eig_hist), axis=1)
-                | np.any(np.abs(eig_hist) > invalid_threshold, axis=1)
+                np.any(~np.isfinite(historical_eigenvalues), axis=1)
+                | np.any(np.abs(historical_eigenvalues) > invalid_threshold, axis=1)
             )
-            pct_eig = 100.0 * invalid_eig.mean() if eig_hist.size else np.nan
+            pct_eig = 100.0 * invalid_eig.mean() if historical_eigenvalues.size else np.nan
 
-            invalid_det = (~np.isfinite(det_hist)) | (np.abs(det_hist) > invalid_threshold)
-            pct_det = 100.0 * invalid_det.mean() if det_hist.size else np.nan
+            invalid_det = (~np.isfinite(historical_determinant)) | (np.abs(historical_determinant) > invalid_threshold)
+            pct_det = 100.0 * invalid_det.mean() if historical_determinant.size else np.nan
 
             invalid_qr = (
                 np.any(~np.isfinite(qr_hist), axis=1)
@@ -128,21 +128,21 @@ def main() -> None:
             )
             pct_qr = 100.0 * invalid_qr.mean() if qr_hist.size else np.nan
 
-            rows.append(
+            table_rows.append(
                 {
                     "Case": label,
                     "Algorithm": "QR (baseline)",
                     "% Invalid Timesteps": np.round(pct_qr, 1),
                 }
             )
-            rows.append(
+            table_rows.append(
                 {
                     "Case": label,
                     "Algorithm": "Eigenvalue Product (before)",
                     "% Invalid Timesteps": np.round(pct_eig, 1),
                 }
             )
-            rows.append(
+            table_rows.append(
                 {
                     "Case": label,
                     "Algorithm": "Determinant Sum (before)",
@@ -150,7 +150,7 @@ def main() -> None:
                 }
             )
 
-        df_invalid_long = pd.DataFrame(rows)
+        invalid_timesteps_long = pd.DataFrame(table_rows)
 
         order_cases: list[str] = [c[0] for c in configs]
         order_algs: list[str] = [
@@ -159,17 +159,17 @@ def main() -> None:
             "Determinant Sum (before)",
         ]
 
-        table_invalid = (
-            df_invalid_long.pivot(
+        invalid_timesteps_table = (
+            invalid_timesteps_long.pivot(
                 index="Case",
                 columns="Algorithm",
                 values="% Invalid Timesteps",
             ).reindex(index=order_cases, columns=order_algs)
         )
 
-        logger.info("Generated Table 4 dataframe with %d rows.", len(df_invalid_long))
+        logger.info("Generated Table 4 dataframe with %d rows.", len(invalid_timesteps_long))
         print("\n--- % INVALID TIMESTEPS OVER 10 PERIODS (Gilmore, T=20°C) ---")
-        print(table_invalid.to_string())
+        print(invalid_timesteps_table.to_string())
 
     except Exception:
         logger.exception("Table 4 reproduction failed.")

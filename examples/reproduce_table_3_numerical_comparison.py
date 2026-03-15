@@ -74,7 +74,7 @@ def main() -> None:
             results: dict = {}
 
             logger.info("%s: running QR method.", configuration_name)
-            t0 = time.time()
+            start_time = time.time()
             lce_qr = lyapunov.compute_lce_qr_from_trajectory(
                 radius_data,
                 velocity_data,
@@ -83,7 +83,7 @@ def main() -> None:
                 lyapunov.EQUATION_DISPLAY_NAMES[equation],
                 keep=False,
             )
-            results["QR"] = {"values": list(np.atleast_1d(lce_qr)), "time": time.time() - t0}
+            results["QR"] = {"values": list(np.atleast_1d(lce_qr)), "time": time.time() - start_time}
 
             params_eck = {
                 "emb_dim": nolds_params[configuration_name]["emb_dim"],
@@ -94,9 +94,9 @@ def main() -> None:
                 "min_nb": 2 * nolds_params[configuration_name]["emb_dim"],
             }
             logger.info("%s: running Eckmann method.", configuration_name)
-            t0 = time.time()
+            start_time = time.time()
             lce_eck = compute_lce_eckmann(radius_data, step, params_eck)
-            results["Eckmann"] = {"values": list(np.atleast_1d(lce_eck)), "time": time.time() - t0}
+            results["Eckmann"] = {"values": list(np.atleast_1d(lce_eck)), "time": time.time() - start_time}
 
             params_ros = {
                 "emb_dim": nolds_params[configuration_name]["emb_dim"],
@@ -106,13 +106,13 @@ def main() -> None:
                 "matrix_dim": 2,
             }
             logger.info("%s: running Rosenstein method.", configuration_name)
-            t0 = time.time()
+            start_time = time.time()
             lce_ros = compute_lce_rosenstein(radius_data, step, params_ros)
-            results["Rosenstein"] = {"values": list(np.atleast_1d(lce_ros)), "time": time.time() - t0}
+            results["Rosenstein"] = {"values": list(np.atleast_1d(lce_ros)), "time": time.time() - start_time}
 
             logger.info("%s: running eigenvalue-product method.", configuration_name)
-            t0 = time.time()
-            eigvals = lyapunov.compute_lce_from_eigenvalue_product_trajectory(
+            start_time = time.time()
+            eigenvalue_product_lce = lyapunov.compute_lce_from_eigenvalue_product_trajectory(
                 radius_data,
                 velocity_data,
                 integration_time * frequency,
@@ -121,13 +121,13 @@ def main() -> None:
                 keep=False,
             )
             results["EigenvalueProduct"] = {
-                "values": list(np.atleast_1d(eigvals)),
-                "time": time.time() - t0,
+                "values": list(np.atleast_1d(eigenvalue_product_lce)),
+                "time": time.time() - start_time,
             }
 
             logger.info("%s: running determinant-sum method.", configuration_name)
-            t0 = time.time()
-            sum_lce = lyapunov.compute_lce_sum_from_determinants_trajectory(
+            start_time = time.time()
+            determinant_sum_lce = lyapunov.compute_lce_sum_from_determinants_trajectory(
                 radius_data,
                 velocity_data,
                 integration_time * frequency,
@@ -136,31 +136,31 @@ def main() -> None:
                 keep=False,
             )
             results["DeterminantSum"] = {
-                "values": list(np.atleast_1d(sum_lce)),
-                "time": time.time() - t0,
+                "values": list(np.atleast_1d(determinant_sum_lce)),
+                "time": time.time() - start_time,
             }
 
             all_results[configuration_name] = results
             logger.info("%s: all methods finished successfully.", configuration_name)
 
-        rows: list[dict] = []
+        table_rows: list[dict] = []
         for config, algos in all_results.items():
             for algo, vals in algos.items():
                 values = vals.get("values", None)
-                t = vals.get("time", None)
+                elapsed_time = vals.get("time", None)
 
-                rows.append(
+                table_rows.append(
                     {
                         "Config": config,
                         "Algorithm": algo,
                         "Values": values,
-                        "Time (s)": t,
+                        "Time (s)": elapsed_time,
                     }
                 )
 
-        df = pd.DataFrame(rows)
-        logger.info("Generated Table 3 dataframe with %d rows.", len(df))
-        print(df.to_string(index=False))
+        results_table = pd.DataFrame(table_rows)
+        logger.info("Generated Table 3 dataframe with %d rows.", len(results_table))
+        print(results_table.to_string(index=False))
 
     except Exception:
         logger.exception("Table 3 reproduction failed.")

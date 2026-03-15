@@ -1,6 +1,7 @@
 import numpy as np
-from experiments.experiment_maker import BubbleExperimentFactory
+
 from core.main import BubbleModelBase
+from experiments.experiment_maker import BubbleExperimentFactory
 
 # Physical constants
 ATMOSPHERIC_PRESSURE = 1e5

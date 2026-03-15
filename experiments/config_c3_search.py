@@ -1,26 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-Run C3 (Gilmore) and estimate Lyapunov exponents from the first 1061 points
-using a robust grid search for Eckmann (spectrum) and Rosenstein (LLE).
-
-This script is self-contained: it defines the full grid-search + helpers here,
-and only relies on your existing simulation + LCE implementations:
-- models.bubble_models.create_trajectories
-- models.lorenz.compute_lce_eckmann
-- models.lorenz.compute_lce_rosenstein
-"""
-
 from __future__ import annotations
 
-import numpy as np
-from typing import Dict, Any, Iterable, List, Tuple
+from collections.abc import Iterable
+from typing import Any, Dict, List, Tuple
 
-from models.bubble_models import simulate_bubble_trajectories
+import numpy as np
+
 from models.lorenz import (
-    compute_lce_eckmann,       # must accept (x, dt, params) and return spectrum per second
-    compute_lce_rosenstein     # must accept (x, dt, params) and return lle per second
+    compute_lce_eckmann,  # must accept (x, dt, params) and return spectrum per second
+    compute_lce_rosenstein,  # must accept (x, dt, params) and return lle per second
 )
 
 # ===================== GRID / SEARCH KNOBS =====================
@@ -86,7 +73,6 @@ def _rosenstein_lle(x: np.ndarray, dt: float, emb_dim: int, tau: int, min_tsep: 
     return compute_lce_rosenstein(x, dt, params)
 
 
-# ===================== GRID SEARCH (robust) =====================
 def find_best_params_grid(
     radius: np.ndarray,
     dt: float,
@@ -254,75 +240,3 @@ def find_best_params_grid(
 
     return best
 
-
-# ===================== RUNNER FOR C3 ONLY (TRIM TO 1061) =====================
-def main() -> None:
-    # ------- Fixed setup -------
-    equation = "G"         # 'RP', 'KM', 'G'
-    temperature = 20       # Celsius
-    periods = 10
-    step = 1e-3            # integrator step control used by your runner (step/f)
-
-    # ------- C3 only -------
-    configuration_name = "C3"
-    acoustic_pressure = 2.0e6   # Pa
-    frequency = 0.8e6           # Hz
-    initial_radius = 0.08e-6    # m
-
-    print(f"\n=== Running {configuration_name} (trimmed to first 1061 points) ===")
-
-    # Build time array exactly like your previous runner
-    integration_time = np.arange(0, periods / frequency, step / frequency)
-
-    # Create trajectories
-    trajectories, _model = simulate_bubble_trajectories(
-        [equation],
-        temperature,
-        acoustic_pressure,
-        frequency,
-        initial_radius,
-        integration_time,
-        step
-    )
-
-    # ----- Trim to first 1061 samples to avoid post-explosion data -----
-    N_KEEP = 1061
-    n_total = len(integration_time)
-    if n_total < N_KEEP:
-        raise ValueError(f"Series has only {n_total} points (< {N_KEEP}). "
-                         f"Increase integration span or lower step to ensure at least {N_KEEP} samples.")
-
-    t_used = integration_time[:N_KEEP]
-    radius_full = trajectories[f"Radius_{equation}"]
-    radius_used = np.asarray(radius_full, float)[:N_KEEP]
-
-    # Recompute dt from the trimmed time vector
-    dt_series = float(np.median(np.diff(t_used)))
-
-    try:
-        best = find_best_params_grid(
-            radius=radius_used,
-            dt=dt_series,
-            drive_freq_hz=frequency,
-            emb_grid=EMB_GRID,
-            tau_grid_base=TAU_GRID_BASE,
-            theiler_mults=THEILER_MULTS,
-            traj_len_fracs=TRAJ_LEN_FRACS,
-            use_log_radius=USE_LOG_RADIUS
-        )
-
-        lam1, lam2 = best["eckmann"]["spectrum"][:2]
-        lle = best["rosenstein"]["lle"]
-        chosen = best["params"]
-
-        print("Chosen params:", chosen)
-        print("Eckmann λ1, λ2 [1/s]:", lam1, " ", lam2)
-        print("Rosenstein LLE [1/s]:", lle)
-
-    except Exception as e:
-        print(f"[{configuration_name}] Parameter search failed: {e}")
-        print(f"  N={len(radius_used)}, dt={dt_series}, f={frequency} Hz")
-
-
-if __name__ == "__main__":
-    main()

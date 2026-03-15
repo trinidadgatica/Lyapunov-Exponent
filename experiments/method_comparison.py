@@ -1,22 +1,13 @@
 import numpy as np
-import pandas as pd 
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
-from models.bubble_models import simulate_bubble_trajectories
+import pandas as pd
+
 from core.lyapunov import (
+    EQUATION_DISPLAY_NAMES,
+    compute_lce_from_eigenvalue_product_trajectory,
     compute_lce_qr_from_trajectory,
     compute_lce_sum_from_determinants_trajectory,
-    compute_lce_from_eigenvalue_product_trajectory,
-    EQUATION_DISPLAY_NAMES
 )
-from core.utils.plot_information import (
-    PLOT_WIDTH, PLOT_HEIGHT,
-    X_LABEL_FONT_SIZE, Y_LABEL_FONT_SIZE,
-    X_TICK_FONT_SIZE, Y_TICK_FONT_SIZE,
-    LEGEND_POSITION, LEGEND_FONT_SIZE,
-    LEGEND_TITLE_FONT_SIZE, colors)
-
+from models.bubble_models import simulate_bubble_trajectories
 
 
 def run_method_comparison_experiment(
@@ -79,18 +70,6 @@ def get_final_period_indices(
     # Boolean mask and indices
     mask = (times >= t_start) & (times <= t_end)
     return np.where(mask)[0]
-
-
-def summarize_time_series(history: np.ndarray) -> dict:
-    """
-    Calculate min, max, and mean for a NumPy array time series.
-    """
-    return {
-        "min": np.min(history),
-        "max": np.max(history),
-        "mean": np.mean(history)
-    }
-
 
 def _filter_finite_values(x):
     x = np.asarray(x).ravel()

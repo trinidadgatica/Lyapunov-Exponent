@@ -26,8 +26,8 @@ def main() -> None:
         dict(name="stable_10_0.5_8_3", sigma=10.0, rho=0.5, beta=8.0 / 3.0),
     ]
 
-    t0: float = 0.0
-    t1: float = 50.0
+    start_time: float = 0.0
+    end_time: float = 50.0
     dt: float = 0.01
     transient_time: float = 0.0
     observable: str = "x"
@@ -55,8 +55,8 @@ def main() -> None:
             logger.info("[%d/%d] Running Lorenz case: %s", idx, len(cases), case["name"])
             rows = benchmark_case(
                 case,
-                t0,
-                t1,
+                start_time,
+                end_time,
                 dt,
                 transient_time,
                 eck_params,
@@ -66,12 +66,12 @@ def main() -> None:
             all_rows.extend(rows)
             logger.info("%s: completed successfully.", case["name"])
 
-        df = pd.DataFrame(all_rows)
-        df = df[["case", "method", "time_sec", "lce1", "lce2", "lce3", "sigma", "rho", "beta"]]
-        df = df.sort_values(["case", "method"]).reset_index(drop=True)
+        results_table = pd.DataFrame(all_rows)
+        results_table = results_table[["case", "method", "time_sec", "lce1", "lce2", "lce3", "sigma", "rho", "beta"]]
+        results_table = results_table.sort_values(["case", "method"]).reset_index(drop=True)
 
-        logger.info("Generated Table 1 dataframe with %d rows.", len(df))
-        print(df.to_string(index=False))
+        logger.info("Generated Table 1 dataframe with %d rows.", len(results_table))
+        print(results_table.to_string(index=False))
 
     except Exception:
         logger.exception("Table 1 reproduction failed.")

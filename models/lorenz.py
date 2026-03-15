@@ -18,14 +18,12 @@ def lorenz(t: float, state: list[float], sigma: float, rho: float, beta: float) 
     dzdt = x * y - beta * z
     return [dxdt, dydt, dzdt]
 
-
 def jacobian_lorenz(x: float, y: float, z: float, sigma: float, rho: float, beta: float) -> np.ndarray:
     return np.array([
         [-sigma, sigma, 0],
         [rho - z, -1, -x],
         [y, x, -beta]
     ])
-
 
 def compute_lce_qr_lorenz(
     x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
@@ -51,7 +49,6 @@ def compute_lce_qr_lorenz(
 
     LCE_vals = LCE_vals / (N * dt)
     return (LCE_vals, history) if keep else LCE_vals
-
 
 def compute_lyapunov_from_eigenvalue_product_lorenz(
     x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
@@ -156,54 +153,6 @@ def compute_lyapunov_sum_from_determinants_lorenz(
 
     sum_lce = total_logdet / elapsed
     return (sum_lce, hist) if keep else sum_lce
-
-
-
-def compute_lyapunov_sum_from_determinants_lorenz1(
-    x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
-    sigma: float, rho: float, beta: float, keep: bool = False
-) -> float | tuple[float, np.ndarray]:
-    """
-    Sum of Lyapunov exponents for Lorenz using the continuous-time trace route:
-        sum_i λ_i ≈ (1/N) Σ_k tr(J_c(x_k))   (per unit time)
-
-    Returns a scalar (per unit time). If keep=True, also returns the running estimate.
-    """
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-    z = np.asarray(z, dtype=float)
-    t = np.asarray(time, dtype=float)
-
-    if not (x.shape == y.shape == z.shape == t.shape):
-        raise ValueError("x, y, z, and time must have the same shape.")
-    N = x.size
-    if N < 2:
-        raise ValueError("Need at least two samples.")
-
-    dt = float(t[1] - t[0])
-    if not np.allclose(np.diff(t), dt, rtol=1e-6, atol=1e-12):
-        raise ValueError("time must be uniformly spaced.")
-
-    total = 0.0
-    comp = 0.0  # Kahan compensation
-    history = np.empty(N, dtype=float) if keep else None
-
-    for i in range(N):
-        Jc = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
-        trJ = float(np.trace(Jc))
-
-        # Kahan summation
-        yk = trJ - comp
-        sk = total + yk
-        comp = (sk - total) - yk
-        total = sk
-
-        if keep:
-            history[i] = total / (i + 1)  # per-unit-time estimate
-
-    sum_LCE = total / N  # per-unit-time
-    return (sum_LCE, history) if keep else sum_LCE
-
 
 def compute_lce_eckmann(x_1d: np.ndarray, dt: float, params: dict) -> np.ndarray:
     """
