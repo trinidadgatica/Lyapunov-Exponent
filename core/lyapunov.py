@@ -1,25 +1,15 @@
 import numpy as np
-from numpy.linalg import norm, qr
-from models.bubble_models import create_trajectories
 
-equation_name_dd = dict()
-equation_name_dd['RP'] = 'Rayleigh-Plesset'
-equation_name_dd['KM'] = 'Keller-Miksis'
-equation_name_dd['G'] = 'Gilmore'
+from core.tangent_dynamics import _build_tangent_map_from_jacobian, rk4_step_tangent_map
+from models.bubble_models import simulate_bubble_trajectories
 
-
-def advance_tangent_linear_map(W: np.ndarray, J: np.ndarray, dt: float) -> np.ndarray:
-    """
-    One step RK4 for tangent linear map evolution.
-    """
-    k1 = J @ W
-    k2 = J @ (W + 0.5 * dt * k1)
-    k3 = J @ (W + 0.5 * dt * k2)
-    k4 = J @ (W + dt * k3)
-    return W + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
+EQUATION_DISPLAY_NAMES = dict()
+EQUATION_DISPLAY_NAMES['RP'] = 'Rayleigh-Plesset'
+EQUATION_DISPLAY_NAMES['KM'] = 'Keller-Miksis'
+EQUATION_DISPLAY_NAMES['G'] = 'Gilmore'
 
 
-def compute_lyapunov_exponents_from_trajectory(
+def compute_lce_qr_from_trajectory(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,
@@ -62,7 +52,7 @@ def compute_lyapunov_exponents_from_trajectory(
         else:
             raise ValueError('Wrong equation name')
         
-        W = advance_tangent_linear_map(W, J, dt)
+        W = rk4_step_tangent_map(W, J, dt)
 
         #W = W + dt * J @ W
         W, R = np.linalg.qr(W)
@@ -78,7 +68,7 @@ def compute_lyapunov_exponents_from_trajectory(
         return LCE_vals
 
 
-def find_cut_index(signal: np.ndarray, tolerance: float = 1e-6, min_consecutive: int = 3) -> int:
+def find_trajectory_cut_index(signal: np.ndarray, tolerance: float = 1e-6, min_consecutive: int = 3) -> int:
     """
     Finds the index at which to cut a signal due to:
     - NaN values
@@ -98,7 +88,7 @@ def find_cut_index(signal: np.ndarray, tolerance: float = 1e-6, min_consecutive:
     return len(signal)
 
 
-def compute_lyapunov_grid(
+def compute_lce_grid(
     grid: list[tuple[float, float]],
     equation: str,
     temperature: float,
@@ -137,25 +127,25 @@ def compute_lyapunov_grid(
             times = np.arange(0, periods / f, step)
             time = times * f
 
-            trajectories, model = create_trajectories(
+            trajectories, model = simulate_bubble_trajectories(
                 [equation], temperature, P, f, R0, times, step)
 
             radius = trajectories[f"Radius_{equation}"]
             velocity = trajectories[f"Velocity_{equation}"]
 
-            cut_idx = min(find_cut_index(radius), find_cut_index(velocity, 1e-10))
+            cut_idx = min(find_trajectory_cut_index(radius), find_trajectory_cut_index(velocity, 1e-10))
 
             r_next = radius[cut_idx + 1] if cut_idx < len(radius) - 1 else radius[-1]
             v_next = velocity[cut_idx + 1] if cut_idx < len(velocity) - 1 else velocity[-1]
 
             log_file.write(f"{equation}\t{cut_idx}\t{r_next:.6e}\t{v_next:.6e}\n")
 
-            exps = compute_lyapunov_exponents_from_trajectory(
+            exps = compute_lce_qr_from_trajectory(
                 radius[:cut_idx],
                 velocity[:cut_idx],
                 time[:cut_idx],
                 model,
-                equation_name_dd[equation],
+                EQUATION_DISPLAY_NAMES[equation],
                 keep=False
             )
             exponents.append(exps)
@@ -163,7 +153,7 @@ def compute_lyapunov_grid(
     return exponents
 
 
-def compute_eigenvalues(
+def compute_jacobian_eigenvalues(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,
@@ -197,7 +187,7 @@ def compute_eigenvalues(
     return np.array(eigenvalues)
 
 
-def compute_lyapunov_from_eigenvalue_product(
+def compute_lce_from_eigenvalue_product(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,
@@ -282,7 +272,7 @@ def compute_lyapunov_from_eigenvalue_product(
         return np.array(lyap_exponents)
 
 
-def compute_lyapunov_sum_from_determinants(
+def compute_lce_sum_from_determinants(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,
@@ -333,14 +323,7 @@ def compute_lyapunov_sum_from_determinants(
         return sum_LCE
 
 
-def _phi_from_J(J: np.ndarray, dt: float) -> np.ndarray:
-    """Per-step flow propagator Phi ≈ exp(J*dt) """
-    A = J * dt
-
-    return np.eye(J.shape[0]) + A + 0.5 * (A @ A)
-
-
-def compute_lyapunov_from_eigenvalue_product_fixed(
+def compute_lce_from_eigenvalue_product_trajectory(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,
@@ -404,7 +387,7 @@ def compute_lyapunov_from_eigenvalue_product_fixed(
         if J.shape != (d, d):
             raise ValueError(f"Jacobian must be {d}x{d}, got {J.shape}")
 
-        Phi = _phi_from_J(J, dt)
+        Phi = _build_tangent_map_from_jacobian(J, dt)
 
         # Update: product <- Phi @ product  ; maintain as Q @ T with QR
         Z = Phi @ Q
@@ -430,7 +413,7 @@ def compute_lyapunov_from_eigenvalue_product_fixed(
     else:
         return LCE
     
-def compute_lyapunov_sum_from_determinants_fixed(
+def compute_lce_sum_from_determinants_trajectory(
     radius: np.ndarray,
     velocity: np.ndarray,
     time: np.ndarray,

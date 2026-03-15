@@ -3,10 +3,13 @@ Module for computing Lyapunov exponents and benchmarking methods for the Lorenz 
 """
 
 import time
-import numpy as np
+
 import nolds
-from numpy.linalg import norm, qr
+import numpy as np
 from scipy.integrate import solve_ivp
+
+from core.tangent_dynamics import _build_tangent_map_from_jacobian, rk4_step_tangent_map
+
 
 def lorenz(t: float, state: list[float], sigma: float, rho: float, beta: float) -> list[float]:
     x, y, z = state
@@ -23,16 +26,6 @@ def jacobian_lorenz(x: float, y: float, z: float, sigma: float, rho: float, beta
         [y, x, -beta]
     ])
 
-def advance_tangent_linear_map(W: np.ndarray, J: np.ndarray, dt: float) -> np.ndarray:
-    """
-    One step RK4 for tangent linear map evolution.
-    """
-    k1 = J @ W
-    k2 = J @ (W + 0.5 * dt * k1)
-    k3 = J @ (W + 0.5 * dt * k2)
-    k4 = J @ (W + dt * k3)
-    return W + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
-
 
 def compute_lce_qr_lorenz(
     x: np.ndarray, y: np.ndarray, z: np.ndarray, time: np.ndarray,
@@ -48,7 +41,7 @@ def compute_lce_qr_lorenz(
     for i in range(N):
         J = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
 
-        W = advance_tangent_linear_map(W, J, dt)
+        W = rk4_step_tangent_map(W, J, dt)
         # W = W + dt * J @ W
         W, R = np.linalg.qr(W)
         for j in range(d):
@@ -58,12 +51,6 @@ def compute_lce_qr_lorenz(
 
     LCE_vals = LCE_vals / (N * dt)
     return (LCE_vals, history) if keep else LCE_vals
-
-def _phi_from_J(J: np.ndarray, dt: float) -> np.ndarray:
-    """Per-step flow propagator Phi ≈ exp(J*dt) """
-    A = J * dt
-
-    return np.eye(J.shape[0]) + A + 0.5 * (A @ A)
 
 
 def compute_lyapunov_from_eigenvalue_product_lorenz(
@@ -107,7 +94,7 @@ def compute_lyapunov_from_eigenvalue_product_lorenz(
         #zm = 0.5 * (z[i] + z[i + 1])
 
         J = jacobian_lorenz(x[i], y[i], z[i], sigma, rho, beta)
-        Phi = _phi_from_J(J, dt)
+        Phi = _build_tangent_map_from_jacobian(J, dt)
 
         # Update product: P <- Φ @ P while keeping P = Q @ T
         Z = Phi @ Q
