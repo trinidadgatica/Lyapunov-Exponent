@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
 from models.bubble_models import simulate_bubble_trajectories
 from utils.logging_utils import get_logger, setup_logging
-
 
 setup_logging(log_to_file=True)
 logger = get_logger(__name__)

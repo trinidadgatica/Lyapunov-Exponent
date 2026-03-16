@@ -28,16 +28,16 @@ def main() -> None:
         logger.info("Generating Figure 1: stable RP phase portrait.")
         plot_stable_rp_phase_portrait(
             save_path="figures/fig_1_stable_rp_phase_portrait.pdf",
-            show=True,
-            close=False,
+            show=False,
+            close=True,
         )
         logger.info("Figure 1 generated successfully.")
 
         logger.info("Generating Figure 2: composite phase portrait figure.")
         _, _, lyap_table_data = create_phase_portrait_composite_figure(
             save_path="figures/fig_2_phase_portraits_composite.pdf",
-            show=True,
-            close=False,
+            show=False,
+            close=True,
         )
         logger.info("Figure 2 generated successfully.")
 

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import Normalize
@@ -145,7 +149,7 @@ def plot_d2_map_fixed_pressure(
     d2_vals = _compute_d2_values(results)
 
     if save_path is None:
-        suffix = "_pa_01" if low_pressure else "_pa"
+        suffix = "_pa"
         save_path = f"results/{equation_name}_d2_map{suffix}.pdf"
 
     return plot_d2_map(

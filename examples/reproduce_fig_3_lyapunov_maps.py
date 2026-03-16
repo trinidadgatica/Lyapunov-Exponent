@@ -35,7 +35,7 @@ def main() -> None:
 
     Path("figures").mkdir(parents=True, exist_ok=True)
 
-    n_points = 5
+    n_points = 50
     initial_radii = np.linspace(1, 50, n_points)
     acoustic_pressures = np.linspace(0.2, 3, n_points)
     frequencies = np.linspace(0.02, 2, n_points)
@@ -59,8 +59,8 @@ def main() -> None:
                 save_path=f"figures/LE_map_freq_{eq}.pdf",
                 xticks=[1, 10, 20, 30, 40, 50],
                 yticks=[0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
-                show=True,
-                close=False,
+                show=False,
+                close=True,
                 low_pa=False,
             )
             logger.info("%s: fixed-frequency map saved.", eq)
@@ -83,8 +83,8 @@ def main() -> None:
                 save_path=f"figures/LE_map_pa_{eq}.pdf",
                 xticks=[1, 10, 20, 30, 40, 50],
                 yticks=[0.02, 0.4, 0.8, 1.2, 1.6, 2.0],
-                show=True,
-                close=False,
+                show=False,
+                close=True,
                 low_pa=False,
             )
             logger.info("%s: fixed-pressure map saved.", eq)

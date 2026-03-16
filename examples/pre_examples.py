@@ -50,11 +50,11 @@ def main() -> None:
     # ==========================================================
     # Paper-level experiment settings
     # ==========================================================
-    n_points: int = 5
+    n_points: int = 50
     temperature: float = 20.0  # °C
 
     # Optimization controls
-    skip_existing: bool = False
+    skip_existing: bool = True
     max_workers: int | None = 3
 
     # Fixed-frequency scan settings
